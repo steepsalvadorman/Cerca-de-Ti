@@ -1,6 +1,6 @@
 use std::env;
 
-use crate::features::technician::infrastructure::R2Config;
+use crate::features::technician::infrastructure::S3Config;
 
 pub struct AppConfig {
     pub database_url: String,
@@ -14,7 +14,7 @@ pub struct AppConfig {
     /// `None` until the document bucket is provisioned. Uploads then
     /// answer 503 instead of the server refusing to start — every other
     /// feature works without it.
-    pub r2: Option<R2Config>,
+    pub storage: Option<S3Config>,
 }
 
 impl AppConfig {
@@ -34,19 +34,24 @@ impl AppConfig {
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
                 .collect(),
-            r2: r2_from_env(),
+            storage: storage_from_env(),
         }
     }
 }
 
-/// All four R2 variables or none — a half-configured bucket would fail
-/// at upload time with a signature error that says nothing useful.
-fn r2_from_env() -> Option<R2Config> {
-    Some(R2Config {
-        account_id: non_empty("R2_ACCOUNT_ID")?,
-        access_key_id: non_empty("R2_ACCESS_KEY_ID")?,
-        secret_access_key: non_empty("R2_SECRET_ACCESS_KEY")?,
-        bucket: non_empty("R2_BUCKET_NAME")?,
+/// All the storage variables or none — a half-configured bucket would
+/// fail at upload time with a signature error that says nothing useful.
+/// Works with any S3-compatible provider (R2, Backblaze B2, Supabase
+/// Storage, MinIO, AWS); only these values change.
+fn storage_from_env() -> Option<S3Config> {
+    Some(S3Config {
+        endpoint: non_empty("S3_ENDPOINT")?,
+        // R2 is region-less and expects the literal `auto`; other
+        // providers need their real region.
+        region: non_empty("S3_REGION").unwrap_or_else(|| "auto".to_string()),
+        access_key_id: non_empty("S3_ACCESS_KEY_ID")?,
+        secret_access_key: non_empty("S3_SECRET_ACCESS_KEY")?,
+        bucket: non_empty("S3_BUCKET")?,
     })
 }
 

@@ -1,0 +1,57 @@
+# Render Blueprint for the Cerca backend.
+#
+# Render watches this file and deploys on every push to the default
+# branch, so no CI job is needed — `buildFilter` below keeps a
+# Flutter-only commit from triggering a (slow) Rust rebuild.
+#
+# Postgres is NOT declared here: Render's own free Postgres expires
+# after 30 days, so the database lives on Neon instead and arrives
+# through DATABASE_URL.
+services:
+  - type: web
+    name: cerca-backend
+    runtime: docker
+    plan: free
+    # Closest free region to Peru; swap if latency proves bad.
+    region: oregon
+    # Everything below is relative to this, which is why the Dockerfile
+    # path has no `backend/` prefix.
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    # Matches the handler in src/routes.rs. Render also uses this to
+    # decide when a new deploy is live.
+    healthCheckPath: /health
+    autoDeploy: true
+    buildFilter:
+      # Repo-root relative, unlike the fields above.
+      paths:
+        - backend/**
+    envVars:
+      # `sync: false` means "prompt me in the dashboard, don't store it
+      # in git" — these are secrets or account-specific.
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        # Render generates a long random value once and keeps it stable
+        # across deploys. Changing it would invalidate every session.
+        generateValue: true
+      - key: RUST_LOG
+        value: backend=info,tower_http=warn
+      # Empty is the safe default: the app is mobile-only, and mobile
+      # clients aren't subject to CORS. Fill in only if a web panel appears.
+      - key: CORS_ALLOWED_ORIGINS
+        value: ""
+      # S3-compatible bucket for technician documents (Supabase Storage).
+      # Until these are set, uploads answer 503 and nothing else breaks.
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+    # PORT is deliberately absent: Render injects it, and
+    # `AppConfig::from_env` already reads it.

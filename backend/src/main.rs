@@ -4,7 +4,7 @@ use backend::config::AppConfig;
 use backend::features::auth::infrastructure::{Argon2PasswordHasher, JwtTokenService, PostgresUserRepository};
 use backend::features::technician::application::ObjectStorage;
 use backend::features::technician::infrastructure::{
-    PostgresTechnicianRepository, R2ObjectStorage, UnconfiguredObjectStorage,
+    PostgresTechnicianRepository, S3ObjectStorage, UnconfiguredObjectStorage,
 };
 use backend::features::client::infrastructure::PostgresClientRepository;
 use backend::features::job::infrastructure::PostgresJobRepository;
@@ -36,10 +36,10 @@ async fn main() {
         .await
         .expect("failed to run database migrations");
 
-    let object_storage: Arc<dyn ObjectStorage> = match config.r2 {
-        Some(r2) => Arc::new(R2ObjectStorage::new(r2)),
+    let object_storage: Arc<dyn ObjectStorage> = match config.storage {
+        Some(storage) => Arc::new(S3ObjectStorage::new(storage)),
         None => {
-            tracing::warn!("R2 is not configured — technician document uploads will answer 503");
+            tracing::warn!("object storage is not configured — technician document uploads will answer 503");
             Arc::new(UnconfiguredObjectStorage)
         }
     };
