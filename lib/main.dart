@@ -5,18 +5,18 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 
 void main() {
-  runApp(const ProviderScope(child: CachuelitooApp()));
+  runApp(const ProviderScope(child: CercaApp()));
 }
 
-class CachuelitooApp extends ConsumerWidget {
-  const CachuelitooApp({super.key});
+class CercaApp extends ConsumerWidget {
+  const CercaApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
-      title: 'Cachuelitoo',
+      title: 'Cerca de Ti',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       routerConfig: router,

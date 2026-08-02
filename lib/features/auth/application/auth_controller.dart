@@ -76,4 +76,16 @@ class AuthController extends _$AuthController {
     }
     state = const AsyncData(null);
   }
+
+  /// Ends the session because the backend rejected the stored token
+  /// (expired or invalid), not because the user asked to. Called from
+  /// the Dio interceptor on a 401; the router's redirect then takes the
+  /// app back to `/login` on its own.
+  ///
+  /// Idempotent on purpose: several in-flight requests can each get a
+  /// 401 at the same time, and only the first one should do the work.
+  Future<void> forceLogout() async {
+    if (state.value == null) return;
+    await logout();
+  }
 }

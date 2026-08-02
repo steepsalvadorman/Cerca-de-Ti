@@ -18,9 +18,12 @@ class ChatRepository {
     }
   }
 
-  Future<ChatMessage> sendMessage(String jobId, {required String senderRole, required String text}) async {
+  /// The sender's role is derived from the JWT server-side, so it is
+  /// deliberately not sent here — the same screen serves both the client
+  /// and the technician of a job.
+  Future<ChatMessage> sendMessage(String jobId, {required String text}) async {
     try {
-      final response = await _dio.post('/jobs/$jobId/messages', data: {'sender_role': senderRole, 'text': text});
+      final response = await _dio.post('/jobs/$jobId/messages', data: {'text': text});
       return ChatMessage.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw apiExceptionOf(e);

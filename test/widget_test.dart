@@ -26,7 +26,7 @@ void main() {
   testWidgets('App boots into the animated splash and advances to Login', (tester) async {
     await tester.pumpWidget(ProviderScope(
       overrides: [tokenStorageProvider.overrideWithValue(const _FakeTokenStorage())],
-      child: const CachuelitooApp(),
+      child: const CercaApp(),
     ));
     await tester.pump();
 

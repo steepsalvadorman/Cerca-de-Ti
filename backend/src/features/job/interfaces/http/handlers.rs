@@ -3,7 +3,7 @@ use axum::http::StatusCode;
 use axum::Json;
 use uuid::Uuid;
 
-use crate::features::auth::interfaces::http::middleware::CurrentUser;
+use crate::features::auth::interfaces::http::middleware::{ClientUser, CurrentUser, TechnicianUser};
 use crate::features::job::application::{
     AdvanceProgressUseCase, ChooseOfferInput, ChooseOfferUseCase, CreateJobInput, CreateJobUseCase,
     GetClientHistoryUseCase, GetJobOffersUseCase, GetJobRequestUseCase, GetTechnicianJobsUseCase,
@@ -20,7 +20,7 @@ use super::dto::{
 
 pub async fn create_job(
     State(state): State<AppState>,
-    current_user: CurrentUser,
+    current_user: ClientUser,
     Json(body): Json<CreateJobRequest>,
 ) -> Result<(StatusCode, Json<JobRequestResponse>), AppError> {
     let use_case = CreateJobUseCase::new(state.job_repository.clone());
@@ -56,7 +56,7 @@ pub async fn get_job(
 pub async fn pay_fee(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-    current_user: CurrentUser,
+    current_user: ClientUser,
     Json(body): Json<PayFeeRequest>,
 ) -> Result<StatusCode, AppError> {
     let use_case = PayFeeUseCase::new(state.job_repository.clone());
@@ -85,7 +85,7 @@ pub async fn advance_progress(
 pub async fn rate_job(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-    current_user: CurrentUser,
+    current_user: ClientUser,
     Json(body): Json<RateJobRequest>,
 ) -> Result<StatusCode, AppError> {
     let use_case = RateJobUseCase::new(state.job_repository.clone());
@@ -115,7 +115,7 @@ pub async fn get_offers(
 pub async fn submit_offer(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-    current_user: CurrentUser,
+    current_user: TechnicianUser,
     Json(body): Json<SubmitOfferRequest>,
 ) -> Result<StatusCode, AppError> {
     let use_case = SubmitOfferUseCase::new(state.job_repository.clone(), state.technician_repository.clone());
@@ -134,7 +134,7 @@ pub async fn submit_offer(
 pub async fn choose_offer(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-    current_user: CurrentUser,
+    current_user: ClientUser,
     Json(body): Json<ChooseOfferRequest>,
 ) -> Result<StatusCode, AppError> {
     let use_case = ChooseOfferUseCase::new(state.job_repository.clone());
@@ -151,7 +151,7 @@ pub async fn choose_offer(
 
 pub async fn get_client_history(
     State(state): State<AppState>,
-    current_user: CurrentUser,
+    current_user: ClientUser,
 ) -> Result<Json<Vec<JobRequestResponse>>, AppError> {
     let use_case = GetClientHistoryUseCase::new(state.job_repository.clone());
     let history = use_case.execute(current_user.user_id).await?;
@@ -161,7 +161,7 @@ pub async fn get_client_history(
 
 pub async fn get_technician_jobs(
     State(state): State<AppState>,
-    current_user: CurrentUser,
+    current_user: TechnicianUser,
 ) -> Result<Json<TechnicianJobsResponse>, AppError> {
     let use_case = GetTechnicianJobsUseCase::new(state.job_repository.clone(), state.technician_repository.clone());
     let jobs = use_case.execute(current_user.user_id).await?;

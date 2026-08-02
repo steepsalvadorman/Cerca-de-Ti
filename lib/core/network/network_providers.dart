@@ -10,4 +10,4 @@ part 'network_providers.g.dart';
 TokenStorage tokenStorage(Ref ref) => const TokenStorage();
 
 @Riverpod(keepAlive: true)
-Dio apiClient(Ref ref) => buildApiClient(ref.watch(tokenStorageProvider));
+Dio apiClient(Ref ref) => buildApiClient(ref, ref.watch(tokenStorageProvider));

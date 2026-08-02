@@ -26,8 +26,10 @@ impl From<ChatMessage> for ChatMessageResponse {
     }
 }
 
+/// Note there is no `sender_role` here on purpose: the role comes from
+/// the caller's JWT, never from the request body, so a caller cannot
+/// claim to be posting as the other party.
 #[derive(Deserialize)]
 pub struct SendMessageRequest {
-    pub sender_role: String, // "client" | "technician"
     pub text: String,
 }

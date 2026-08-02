@@ -12,8 +12,6 @@ use crate::state::AppState;
 /// construction, a protected route.
 pub struct CurrentUser {
     pub user_id: Uuid,
-    /// Not read yet — kept for role-gated routes future features will add.
-    #[allow(dead_code)]
     pub role: Role,
 }
 
@@ -43,5 +41,70 @@ where
             .map_err(|_| (StatusCode::UNAUTHORIZED, "invalid or expired token"))?;
 
         Ok(CurrentUser { user_id: claims.user_id, role: claims.role })
+    }
+}
+
+/// Role-gated variants of [`CurrentUser`]. A handler that takes one of
+/// these is, by construction, reachable only by that role — the check is
+/// enforced by the type system instead of an `if` each handler could
+/// forget. Both `Deref` to the inner `CurrentUser`, so handler bodies
+/// keep using `current_user.user_id` unchanged.
+///
+/// Note these are for *role* gating only: ownership checks (is this
+/// client the owner of this job?) still live in the use cases, e.g.
+/// `job::application::authorize_job_access`.
+pub struct ClientUser(pub CurrentUser);
+
+pub struct TechnicianUser(pub CurrentUser);
+
+impl std::ops::Deref for ClientUser {
+    type Target = CurrentUser;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::Deref for TechnicianUser {
+    type Target = CurrentUser;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<S> FromRequestParts<S> for ClientUser
+where
+    AppState: FromRef<S>,
+    S: Send + Sync,
+{
+    type Rejection = (StatusCode, &'static str);
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let user = CurrentUser::from_request_parts(parts, state).await?;
+
+        if user.role != Role::Client {
+            return Err((StatusCode::FORBIDDEN, "this action requires a client account"));
+        }
+
+        Ok(ClientUser(user))
+    }
+}
+
+impl<S> FromRequestParts<S> for TechnicianUser
+where
+    AppState: FromRef<S>,
+    S: Send + Sync,
+{
+    type Rejection = (StatusCode, &'static str);
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let user = CurrentUser::from_request_parts(parts, state).await?;
+
+        if user.role != Role::Technician {
+            return Err((StatusCode::FORBIDDEN, "this action requires a technician account"));
+        }
+
+        Ok(TechnicianUser(user))
     }
 }

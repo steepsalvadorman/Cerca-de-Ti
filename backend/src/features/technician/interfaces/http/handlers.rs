@@ -3,7 +3,7 @@ use axum::http::StatusCode;
 use axum::Json;
 use serde::Deserialize;
 
-use crate::features::auth::interfaces::http::middleware::CurrentUser;
+use crate::features::auth::interfaces::http::middleware::TechnicianUser;
 use crate::features::technician::application::{
     GetProvidersUseCase, SaveTechnicianProfileInput, SaveTechnicianProfileUseCase, ToggleDocumentInput,
     ToggleDocumentUseCase,
@@ -34,7 +34,7 @@ pub async fn get_providers(
 
 pub async fn get_my_profile(
     State(state): State<AppState>,
-    current_user: CurrentUser,
+    current_user: TechnicianUser,
 ) -> Result<Json<TechnicianResponse>, AppError> {
     let profile = state
         .technician_repository
@@ -47,7 +47,7 @@ pub async fn get_my_profile(
 
 pub async fn save_profile(
     State(state): State<AppState>,
-    current_user: CurrentUser,
+    current_user: TechnicianUser,
     Json(body): Json<SaveProfileRequest>,
 ) -> Result<StatusCode, AppError> {
     let use_case = SaveTechnicianProfileUseCase::new(
@@ -70,7 +70,7 @@ pub async fn save_profile(
 
 pub async fn toggle_document(
     State(state): State<AppState>,
-    current_user: CurrentUser,
+    current_user: TechnicianUser,
     Json(body): Json<ToggleDocRequest>,
 ) -> Result<StatusCode, AppError> {
     let use_case = ToggleDocumentUseCase::new(state.technician_repository.clone());
@@ -90,7 +90,7 @@ pub async fn toggle_document(
 
 pub async fn get_documents(
     State(state): State<AppState>,
-    current_user: CurrentUser,
+    current_user: TechnicianUser,
 ) -> Result<Json<Vec<DocResponse>>, AppError> {
     let profile = state
         .technician_repository

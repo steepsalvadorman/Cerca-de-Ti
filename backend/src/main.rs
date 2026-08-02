@@ -44,7 +44,7 @@ async fn main() {
         tracking_repository: Arc::new(PostgresTrackingRepository::new(pool)),
     };
 
-    let app = routes::app_router(state);
+    let app = routes::app_router(state, &config.cors_allowed_origins);
 
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", config.port))
         .await

@@ -37,7 +37,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (trimmed.isEmpty || _sending) return;
     setState(() => _sending = true);
     try {
-      await ref.read(chatRepositoryProvider).sendMessage(jobId, senderRole: 'client', text: trimmed);
+      await ref.read(chatRepositoryProvider).sendMessage(jobId, text: trimmed);
       _textController.clear();
     } catch (e) {
       if (!mounted) return;

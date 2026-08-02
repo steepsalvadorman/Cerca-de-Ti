@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/auth/application/auth_controller.dart';
 import 'api_exception.dart';
 import 'token_storage.dart';
 
@@ -15,9 +17,15 @@ const String apiBaseUrl = String.fromEnvironment(
 );
 
 /// Builds the shared [Dio] client: attaches the stored bearer token to
-/// every request and maps every failure to an [ApiException] so
-/// repositories only ever need to catch one error type.
-Dio buildApiClient(TokenStorage tokenStorage) {
+/// every request, maps every failure to an [ApiException] so
+/// repositories only ever need to catch one error type, and drops the
+/// session when the backend rejects the stored token.
+///
+/// [ref] is only ever used from the `onError` callback — never during
+/// the owning provider's `build` — so reading `authControllerProvider`
+/// here creates no dependency cycle, exactly as reading it from a
+/// widget callback wouldn't.
+Dio buildApiClient(Ref ref, TokenStorage tokenStorage) {
   final dio = Dio(BaseOptions(
     baseUrl: apiBaseUrl,
     connectTimeout: const Duration(seconds: 10),
@@ -33,7 +41,26 @@ Dio buildApiClient(TokenStorage tokenStorage) {
       handler.next(options);
     },
     onError: (error, handler) {
-      handler.next(error.copyWith(error: _toApiException(error)));
+      final apiException = _toApiException(error);
+
+      // Only a rejected *token* ends the session. A 401 from
+      // `/auth/login` means "wrong password" (no token was sent), and a
+      // 403 means the session is fine but the role isn't allowed —
+      // neither should log anyone out.
+      final sentToken = error.requestOptions.headers.containsKey('Authorization');
+      if (apiException.isUnauthorized && sentToken) {
+        try {
+          ref.read(authControllerProvider.notifier).forceLogout();
+        } catch (_) {
+          // The one moment this read can fail is a 401 on the `/me` call
+          // that `AuthController.build` itself makes at startup — the
+          // controller is still building, so there is no session to drop
+          // yet. `_restoreSession` already clears the stored token in
+          // that case, so swallowing here loses nothing.
+        }
+      }
+
+      handler.next(error.copyWith(error: apiException));
     },
   ));
 

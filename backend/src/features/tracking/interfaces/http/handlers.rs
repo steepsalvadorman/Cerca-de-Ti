@@ -3,7 +3,7 @@ use axum::http::StatusCode;
 use axum::Json;
 use uuid::Uuid;
 
-use crate::features::auth::interfaces::http::middleware::CurrentUser;
+use crate::features::auth::interfaces::http::middleware::{CurrentUser, TechnicianUser};
 use crate::features::tracking::application::{GetLocationUseCase, UpdateLocationInput, UpdateLocationUseCase};
 use crate::shared::AppError;
 use crate::state::AppState;
@@ -13,7 +13,7 @@ use super::dto::{LocationResponse, UpdateLocationRequest};
 pub async fn update_location(
     State(state): State<AppState>,
     Path(job_request_id): Path<Uuid>,
-    current_user: CurrentUser,
+    current_user: TechnicianUser,
     Json(body): Json<UpdateLocationRequest>,
 ) -> Result<StatusCode, AppError> {
     let use_case = UpdateLocationUseCase::new(

@@ -53,7 +53,7 @@ impl SaveTechnicianProfileUseCase {
                     rating: 5.0,
                     reviews: 0,
                     distance: "0.5 km".to_string(),
-                    price_label: "Desde $15.000".to_string(),
+                    price_label: "Desde S/ 15".to_string(),
                     pin_top: 0.45, // Default mock coordinate pin position
                     pin_left: 0.35,
                     coverage_km: input.coverage_km,

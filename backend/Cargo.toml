@@ -20,3 +20,8 @@ tower-http = { version = "0.7.0", features = ["trace", "cors"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 uuid = { version = "1.23.4", features = ["v4", "serde"] }
+
+[dev-dependencies]
+# `ServiceExt::oneshot` lets the role-authorization tests drive the real
+# router (extractors, auth, status codes included) without binding a port.
+tower = { version = "0.5", features = ["util"] }

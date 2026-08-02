@@ -2,7 +2,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::Json;
 
-use crate::features::auth::interfaces::http::middleware::CurrentUser;
+use crate::features::auth::interfaces::http::middleware::ClientUser;
 use crate::features::client::application::{
     AddAddressInput, AddAddressUseCase, AddPaymentMethodInput, AddPaymentMethodUseCase, GetClientAddressesUseCase,
     GetClientPaymentMethodsUseCase, GetClientProfileStatusUseCase, SaveClientProfileUseCase,
@@ -17,7 +17,7 @@ use super::dto::{
 
 pub async fn save_profile(
     State(state): State<AppState>,
-    current_user: CurrentUser,
+    current_user: ClientUser,
     Json(body): Json<SaveClientProfileRequest>,
 ) -> Result<StatusCode, AppError> {
     let use_case = SaveClientProfileUseCase::new(state.client_repository.clone());
@@ -27,7 +27,7 @@ pub async fn save_profile(
 
 pub async fn get_profile_status(
     State(state): State<AppState>,
-    current_user: CurrentUser,
+    current_user: ClientUser,
 ) -> Result<Json<ClientProfileStatusResponse>, AppError> {
     let use_case = GetClientProfileStatusUseCase::new(state.client_repository.clone());
     let profile_saved = use_case.execute(current_user.user_id).await?;
@@ -36,7 +36,7 @@ pub async fn get_profile_status(
 
 pub async fn get_addresses(
     State(state): State<AppState>,
-    current_user: CurrentUser,
+    current_user: ClientUser,
 ) -> Result<Json<Vec<AddressResponse>>, AppError> {
     let use_case = GetClientAddressesUseCase::new(state.client_repository.clone());
     let addresses = use_case.execute(current_user.user_id).await?;
@@ -45,7 +45,7 @@ pub async fn get_addresses(
 
 pub async fn add_address(
     State(state): State<AppState>,
-    current_user: CurrentUser,
+    current_user: ClientUser,
     Json(body): Json<AddAddressRequest>,
 ) -> Result<(StatusCode, Json<AddressResponse>), AppError> {
     let use_case = AddAddressUseCase::new(state.client_repository.clone());
@@ -61,7 +61,7 @@ pub async fn add_address(
 
 pub async fn get_payment_methods(
     State(state): State<AppState>,
-    current_user: CurrentUser,
+    current_user: ClientUser,
 ) -> Result<Json<Vec<PaymentMethodResponse>>, AppError> {
     let use_case = GetClientPaymentMethodsUseCase::new(state.client_repository.clone());
     let methods = use_case.execute(current_user.user_id).await?;
@@ -70,7 +70,7 @@ pub async fn get_payment_methods(
 
 pub async fn add_payment_method(
     State(state): State<AppState>,
-    current_user: CurrentUser,
+    current_user: ClientUser,
     Json(body): Json<AddPaymentMethodRequest>,
 ) -> Result<(StatusCode, Json<PaymentMethodResponse>), AppError> {
     let use_case = AddPaymentMethodUseCase::new(state.client_repository.clone());

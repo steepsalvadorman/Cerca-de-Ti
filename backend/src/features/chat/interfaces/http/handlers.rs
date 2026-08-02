@@ -26,7 +26,7 @@ pub async fn send_message(
         .execute(SendMessageInput {
             job_request_id,
             sender_id: current_user.user_id,
-            sender_role: body.sender_role,
+            sender_role: current_user.role.as_str().to_string(),
             text: body.text,
         })
         .await?;
