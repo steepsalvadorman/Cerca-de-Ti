@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use backend::config::AppConfig;
 use backend::features::auth::infrastructure::{Argon2PasswordHasher, JwtTokenService, PostgresUserRepository};
-use backend::features::technician::infrastructure::PostgresTechnicianRepository;
+use backend::features::technician::application::ObjectStorage;
+use backend::features::technician::infrastructure::{
+    PostgresTechnicianRepository, R2ObjectStorage, UnconfiguredObjectStorage,
+};
 use backend::features::client::infrastructure::PostgresClientRepository;
 use backend::features::job::infrastructure::PostgresJobRepository;
 use backend::features::chat::infrastructure::PostgresChatRepository;
@@ -33,6 +36,14 @@ async fn main() {
         .await
         .expect("failed to run database migrations");
 
+    let object_storage: Arc<dyn ObjectStorage> = match config.r2 {
+        Some(r2) => Arc::new(R2ObjectStorage::new(r2)),
+        None => {
+            tracing::warn!("R2 is not configured — technician document uploads will answer 503");
+            Arc::new(UnconfiguredObjectStorage)
+        }
+    };
+
     let state = AppState {
         user_repository: Arc::new(PostgresUserRepository::new(pool.clone())),
         password_hasher: Arc::new(Argon2PasswordHasher),
@@ -42,6 +53,7 @@ async fn main() {
         job_repository: Arc::new(PostgresJobRepository::new(pool.clone())),
         chat_repository: Arc::new(PostgresChatRepository::new(pool.clone())),
         tracking_repository: Arc::new(PostgresTrackingRepository::new(pool)),
+        object_storage,
     };
 
     let app = routes::app_router(state, &config.cors_allowed_origins);

@@ -93,6 +93,10 @@ struct TechnicianDocumentRow {
     technician_profile_id: i32,
     document_key: String,
     status: String,
+    storage_key: Option<String>,
+    content_type: Option<String>,
+    original_filename: Option<String>,
+    uploaded_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl TryFrom<TechnicianDocumentRow> for TechnicianDocument {
@@ -104,6 +108,10 @@ impl TryFrom<TechnicianDocumentRow> for TechnicianDocument {
             technician_profile_id: row.technician_profile_id,
             document_key: row.document_key,
             status: DocStatus::parse(&row.status)?,
+            storage_key: row.storage_key,
+            content_type: row.content_type,
+            original_filename: row.original_filename,
+            uploaded_at: row.uploaded_at,
         })
     }
 }
@@ -225,7 +233,8 @@ impl TechnicianRepository for PostgresTechnicianRepository {
 
     async fn find_documents(&self, technician_profile_id: i32) -> Result<Vec<TechnicianDocument>, TechnicianError> {
         let rows = sqlx::query_as::<_, TechnicianDocumentRow>(
-            "SELECT id, technician_profile_id, document_key, status FROM technician_documents \
+            "SELECT id, technician_profile_id, document_key, status, storage_key, content_type, \
+             original_filename, uploaded_at FROM technician_documents \
              WHERE technician_profile_id = $1",
         )
         .bind(technician_profile_id)
@@ -242,18 +251,60 @@ impl TechnicianRepository for PostgresTechnicianRepository {
         Ok(docs)
     }
 
-    async fn update_document_status(&self, technician_profile_id: i32, document_key: &str, status: DocStatus) -> Result<(), TechnicianError> {
+    async fn start_document_upload(
+        &self,
+        technician_profile_id: i32,
+        document_key: &str,
+        storage_key: &str,
+        content_type: &str,
+        original_filename: Option<&str>,
+    ) -> Result<(), TechnicianError> {
+        // Back to `pending` even if this document was already uploaded:
+        // the previous file stays in the bucket but is no longer the one
+        // this row points at, and it only counts again once confirmed.
         sqlx::query(
-            "INSERT INTO technician_documents (technician_profile_id, document_key, status) \
-             VALUES ($1, $2, $3) \
-             ON CONFLICT (technician_profile_id, document_key) DO UPDATE SET status = EXCLUDED.status",
+            "INSERT INTO technician_documents \
+                (technician_profile_id, document_key, status, storage_key, content_type, original_filename, uploaded_at) \
+             VALUES ($1, $2, 'pending', $3, $4, $5, NULL) \
+             ON CONFLICT (technician_profile_id, document_key) DO UPDATE SET \
+                status = 'pending', \
+                storage_key = EXCLUDED.storage_key, \
+                content_type = EXCLUDED.content_type, \
+                original_filename = EXCLUDED.original_filename, \
+                uploaded_at = NULL",
         )
         .bind(technician_profile_id)
         .bind(document_key)
-        .bind(status.as_str())
+        .bind(storage_key)
+        .bind(content_type)
+        .bind(original_filename)
         .execute(&self.pool)
         .await
         .map_err(|e| TechnicianError::Repository(e.to_string()))?;
+
+        Ok(())
+    }
+
+    async fn confirm_document_upload(
+        &self,
+        technician_profile_id: i32,
+        document_key: &str,
+    ) -> Result<(), TechnicianError> {
+        // `storage_key IS NOT NULL` is what makes this un-fakeable: only
+        // a row created by `start_document_upload` can be confirmed.
+        let result = sqlx::query(
+            "UPDATE technician_documents SET status = 'uploaded', uploaded_at = now() \
+             WHERE technician_profile_id = $1 AND document_key = $2 AND storage_key IS NOT NULL",
+        )
+        .bind(technician_profile_id)
+        .bind(document_key)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| TechnicianError::Repository(e.to_string()))?;
+
+        if result.rows_affected() == 0 {
+            return Err(TechnicianError::DocumentNotFound);
+        }
 
         Ok(())
     }

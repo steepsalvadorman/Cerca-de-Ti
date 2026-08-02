@@ -19,7 +19,7 @@ use backend::features::auth::infrastructure::{Argon2PasswordHasher, JwtTokenServ
 use backend::features::chat::infrastructure::PostgresChatRepository;
 use backend::features::client::infrastructure::PostgresClientRepository;
 use backend::features::job::infrastructure::PostgresJobRepository;
-use backend::features::technician::infrastructure::PostgresTechnicianRepository;
+use backend::features::technician::infrastructure::{PostgresTechnicianRepository, UnconfiguredObjectStorage};
 use backend::features::tracking::infrastructure::PostgresTrackingRepository;
 use backend::routes::app_router;
 use backend::state::AppState;
@@ -36,6 +36,9 @@ fn test_state(pool: PgPool) -> AppState {
         job_repository: Arc::new(PostgresJobRepository::new(pool.clone())),
         chat_repository: Arc::new(PostgresChatRepository::new(pool.clone())),
         tracking_repository: Arc::new(PostgresTrackingRepository::new(pool)),
+        // These tests only assert who may reach a route, never that an
+        // upload succeeds, so no bucket is needed.
+        object_storage: Arc::new(UnconfiguredObjectStorage),
     }
 }
 

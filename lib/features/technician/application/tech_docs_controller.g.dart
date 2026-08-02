@@ -9,13 +9,13 @@ part of 'tech_docs_controller.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// The signed-in technician's document checklist
-/// (`GET/POST /technician/documents[/toggle]`).
+/// (`GET /technician/documents`, plus the upload-url/confirm pair).
 
 @ProviderFor(TechDocsController)
 final techDocsControllerProvider = TechDocsControllerProvider._();
 
 /// The signed-in technician's document checklist
-/// (`GET/POST /technician/documents[/toggle]`).
+/// (`GET /technician/documents`, plus the upload-url/confirm pair).
 final class TechDocsControllerProvider
     extends
         $AsyncNotifierProvider<
@@ -23,7 +23,7 @@ final class TechDocsControllerProvider
           List<TechnicianDocumentStatus>
         > {
   /// The signed-in technician's document checklist
-  /// (`GET/POST /technician/documents[/toggle]`).
+  /// (`GET /technician/documents`, plus the upload-url/confirm pair).
   TechDocsControllerProvider._()
     : super(
         from: null,
@@ -44,10 +44,10 @@ final class TechDocsControllerProvider
 }
 
 String _$techDocsControllerHash() =>
-    r'e76f6faa4a46e031ec78bf625d1b792ae0ef453e';
+    r'a56088ce234898b8ff914e48e30f0b9530f00d45';
 
 /// The signed-in technician's document checklist
-/// (`GET/POST /technician/documents[/toggle]`).
+/// (`GET /technician/documents`, plus the upload-url/confirm pair).
 
 abstract class _$TechDocsController
     extends $AsyncNotifier<List<TechnicianDocumentStatus>> {

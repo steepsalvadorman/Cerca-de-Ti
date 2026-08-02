@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::features::auth::application::{PasswordHasher, TokenService};
 use crate::features::auth::domain::UserRepository;
+use crate::features::technician::application::ObjectStorage;
 use crate::features::technician::domain::TechnicianRepository;
 use crate::features::client::domain::ClientRepository;
 use crate::features::job::domain::JobRepository;
@@ -21,4 +22,5 @@ pub struct AppState {
     pub job_repository: Arc<dyn JobRepository>,
     pub chat_repository: Arc<dyn ChatRepository>,
     pub tracking_repository: Arc<dyn TrackingRepository>,
+    pub object_storage: Arc<dyn ObjectStorage>,
 }

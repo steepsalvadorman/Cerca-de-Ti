@@ -11,16 +11,42 @@ import '../../../cerca/presentation/widgets/back_circle_button.dart';
 import '../../../cerca/presentation/widgets/cerca_text_styles.dart';
 import '../../../cerca/presentation/widgets/monogram_avatar.dart';
 import '../../../cerca/presentation/widgets/primary_action_button.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../application/tech_docs_controller.dart';
 import '../../domain/technician_document.dart';
 
-class TechDocsScreen extends ConsumerWidget {
+class TechDocsScreen extends ConsumerStatefulWidget {
   const TechDocsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TechDocsScreen> createState() => _TechDocsScreenState();
+}
+
+class _TechDocsScreenState extends ConsumerState<TechDocsScreen> {
+  /// Which document is mid-upload, so only its row shows a spinner.
+  String? _uploading;
+
+  Future<void> _upload(String documentKey) async {
+    if (_uploading != null) return;
+    setState(() => _uploading = documentKey);
+    try {
+      final uploaded = await ref.read(techDocsControllerProvider.notifier).upload(documentKey);
+      if (!mounted || !uploaded) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Documento subido.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final message = e is ApiException ? e.message : 'No se pudo subir el documento.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) setState(() => _uploading = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final docsAsync = ref.watch(techDocsControllerProvider);
-    final controller = ref.watch(techDocsControllerProvider.notifier);
     final docs = docsAsync.value ?? const <TechnicianDocumentStatus>[];
     final uploadedCount = docs.where((d) => d.isUploaded).length;
     final totalCount = CercaSeedData.docRequirements.length;
@@ -86,7 +112,8 @@ class TechDocsScreen extends ConsumerWidget {
                       _DocRow(
                         doc: doc,
                         uploaded: docs.any((d) => d.documentKey == doc.key && d.isUploaded),
-                        onTap: () => controller.toggle(doc.key),
+                        uploading: _uploading == doc.key,
+                        onTap: _uploading == null ? () => _upload(doc.key) : null,
                       ),
                     if (allUploaded)
                       Container(
@@ -119,11 +146,18 @@ class TechDocsScreen extends ConsumerWidget {
 }
 
 class _DocRow extends StatelessWidget {
-  const _DocRow({required this.doc, required this.uploaded, required this.onTap});
+  const _DocRow({
+    required this.doc,
+    required this.uploaded,
+    required this.uploading,
+    required this.onTap,
+  });
 
   final DocRequirement doc;
   final bool uploaded;
-  final VoidCallback onTap;
+  final bool uploading;
+  /// `null` while another document is uploading, which disables the row.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -141,24 +175,33 @@ class _DocRow extends StatelessWidget {
             Expanded(
               child: Text(doc.label, style: CercaText.sora(fontSize: 14, fontWeight: FontWeight.w600)),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: uploaded ? AppColors.cercaSuccessBg : Colors.transparent,
-                borderRadius: BorderRadius.circular(20),
-                border: uploaded
-                    ? Border.all(color: AppColors.cercaSuccessBorder)
-                    : Border.all(color: const Color(0xFFD8CFC9), style: BorderStyle.solid),
-              ),
-              child: Text(
-                uploaded ? 'Subido' : 'Pendiente',
-                style: CercaText.sora(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: uploaded ? AppColors.cercaSuccessText : AppColors.cercaTextMuted,
+            if (uploading)
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.cercaPrimary),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: uploaded ? AppColors.cercaSuccessBg : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                  border: uploaded
+                      ? Border.all(color: AppColors.cercaSuccessBorder)
+                      : Border.all(color: const Color(0xFFD8CFC9), style: BorderStyle.solid),
+                ),
+                child: Text(
+                  // "Subir" rather than "Pendiente": the row is now an
+                  // action, not just a status badge.
+                  uploaded ? 'Subido' : 'Subir',
+                  style: CercaText.sora(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: uploaded ? AppColors.cercaSuccessText : AppColors.cercaTextMuted,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),

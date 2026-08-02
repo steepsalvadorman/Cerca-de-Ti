@@ -76,7 +76,16 @@ impl IntoResponse for AppError {
             AppError::Technician(TechnicianError::TechnicianNotFound)
             | AppError::Technician(TechnicianError::TeamNotFound)
             | AppError::Technician(TechnicianError::DocumentNotFound) => (StatusCode::NOT_FOUND, self.to_string()),
-            AppError::Technician(TechnicianError::InvalidDocumentStatus(_)) => (StatusCode::BAD_REQUEST, self.to_string()),
+            AppError::Technician(TechnicianError::InvalidDocumentStatus(_))
+            | AppError::Technician(TechnicianError::InvalidDocumentKey(_))
+            | AppError::Technician(TechnicianError::InvalidContentType(_)) => (StatusCode::BAD_REQUEST, self.to_string()),
+            // Not the caller's fault and not a bug either: the server is
+            // missing its bucket credentials, so uploads cannot proceed
+            // until that deploy step is done.
+            AppError::Technician(TechnicianError::StorageUnavailable) => {
+                tracing::error!("document storage is not configured — set the R2_* environment variables");
+                (StatusCode::SERVICE_UNAVAILABLE, self.to_string())
+            }
             AppError::Technician(TechnicianError::Repository(_)) => {
                 tracing::error!(error = %self, "technician internal error");
                 (StatusCode::INTERNAL_SERVER_ERROR, "internal server error".to_string())

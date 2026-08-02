@@ -97,15 +97,26 @@ pub struct SaveProfileRequest {
 }
 
 #[derive(Deserialize)]
-pub struct ToggleDocRequest {
-    pub document_key: String,
-    pub status: String, // "uploaded" or "pending"
+pub struct DocumentUploadUrlRequest {
+    /// MIME type of the file about to be uploaded, checked against the
+    /// allowlist in `upload_document.rs`.
+    pub content_type: String,
+    /// Only kept so a reviewer sees what the technician picked; the
+    /// object itself is stored under a generated key.
+    pub original_filename: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct DocumentUploadUrlResponse {
+    pub upload_url: String,
+    pub storage_key: String,
 }
 
 #[derive(Serialize)]
 pub struct DocResponse {
     pub document_key: String,
     pub status: String,
+    pub uploaded_at: Option<String>,
 }
 
 impl From<TechnicianDocument> for DocResponse {
@@ -113,6 +124,7 @@ impl From<TechnicianDocument> for DocResponse {
         Self {
             document_key: d.document_key,
             status: d.status.as_str().to_string(),
+            uploaded_at: d.uploaded_at.map(|at| at.to_rfc3339()),
         }
     }
 }

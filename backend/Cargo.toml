@@ -9,6 +9,13 @@ async-trait = "0.1.89"
 axum = "0.8.9"
 chrono = { version = "0.4.45", features = ["serde"] }
 dotenvy = "0.15.7"
+# Just enough to sign S3-compatible presigned URLs (see
+# `r2_object_storage.rs`). All three are already in the tree via
+# jsonwebtoken/sqlx, unlike `aws-sdk-s3`, which would pull in the whole
+# AWS runtime to do arithmetic we need ~80 lines for.
+hex = "0.4.3"
+hmac = "0.12.1"
+sha2 = "0.10.9"
 jsonwebtoken = { version = "10.4.0", features = ["rust_crypto"] }
 rand_core = { version = "0.6", features = ["getrandom"] }
 serde = { version = "1.0.228", features = ["derive"] }

@@ -1,18 +1,22 @@
-use axum::extract::{Query, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 use serde::Deserialize;
 
 use crate::features::auth::interfaces::http::middleware::TechnicianUser;
 use crate::features::technician::application::{
-    GetProvidersUseCase, SaveTechnicianProfileInput, SaveTechnicianProfileUseCase, ToggleDocumentInput,
-    ToggleDocumentUseCase,
+    ConfirmDocumentUploadInput, ConfirmDocumentUploadUseCase, CreateDocumentUploadUrlInput,
+    CreateDocumentUploadUrlUseCase, GetProvidersUseCase, SaveTechnicianProfileInput,
+    SaveTechnicianProfileUseCase,
 };
-use crate::features::technician::domain::{DocStatus, TechnicianError};
+use crate::features::technician::domain::TechnicianError;
 use crate::shared::AppError;
 use crate::state::AppState;
 
-use super::dto::{DocResponse, ListProvidersResponse, SaveProfileRequest, TechnicianResponse, ToggleDocRequest};
+use super::dto::{
+    DocResponse, DocumentUploadUrlRequest, DocumentUploadUrlResponse, ListProvidersResponse,
+    SaveProfileRequest, TechnicianResponse,
+};
 
 #[derive(Deserialize)]
 pub struct CategoryQuery {
@@ -68,20 +72,43 @@ pub async fn save_profile(
     Ok(StatusCode::OK)
 }
 
-pub async fn toggle_document(
+pub async fn create_document_upload_url(
     State(state): State<AppState>,
+    Path(document_key): Path<String>,
     current_user: TechnicianUser,
-    Json(body): Json<ToggleDocRequest>,
+    Json(body): Json<DocumentUploadUrlRequest>,
+) -> Result<Json<DocumentUploadUrlResponse>, AppError> {
+    let use_case = CreateDocumentUploadUrlUseCase::new(
+        state.technician_repository.clone(),
+        state.object_storage.clone(),
+    );
+
+    let output = use_case
+        .execute(CreateDocumentUploadUrlInput {
+            user_id: current_user.user_id,
+            document_key,
+            content_type: body.content_type,
+            original_filename: body.original_filename,
+        })
+        .await?;
+
+    Ok(Json(DocumentUploadUrlResponse {
+        upload_url: output.upload_url,
+        storage_key: output.storage_key,
+    }))
+}
+
+pub async fn confirm_document_upload(
+    State(state): State<AppState>,
+    Path(document_key): Path<String>,
+    current_user: TechnicianUser,
 ) -> Result<StatusCode, AppError> {
-    let use_case = ToggleDocumentUseCase::new(state.technician_repository.clone());
-    let status = DocStatus::parse(&body.status)
-        .map_err(|e| AppError::Technician(TechnicianError::InvalidDocumentStatus(e)))?;
+    let use_case = ConfirmDocumentUploadUseCase::new(state.technician_repository.clone());
 
     use_case
-        .execute(ToggleDocumentInput {
+        .execute(ConfirmDocumentUploadInput {
             user_id: current_user.user_id,
-            document_key: body.document_key,
-            status,
+            document_key,
         })
         .await?;
 
