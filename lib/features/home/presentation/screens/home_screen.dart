@@ -90,6 +90,7 @@ class HomeScreen extends ConsumerWidget {
     final isPuntual = state.jobKind == JobKind.puntual;
     final categories = isPuntual ? CercaSeedData.categories : CercaSeedData.projectCategories;
     final userName = ref.watch(authControllerProvider).value?.user.name.trim().split(' ').first ?? '';
+    final selectedCategory = ref.watch(selectedCategoryProvider);
     final providersAsync = ref.watch(providersControllerProvider);
     final providersPage = providersAsync.value;
     final List<_Provider> providers = providersPage == null
@@ -180,7 +181,12 @@ class HomeScreen extends ConsumerWidget {
                             scrollDirection: Axis.horizontal,
                             itemCount: categories.length,
                             separatorBuilder: (_, _) => const SizedBox(width: 10),
-                            itemBuilder: (context, i) => _CategoryChip(category: categories[i]),
+                            itemBuilder: (context, i) => _CategoryChip(
+                              category: categories[i],
+                              active: selectedCategory == categories[i].id,
+                              onTap: () =>
+                                  ref.read(selectedCategoryProvider.notifier).toggle(categories[i].id),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -287,35 +293,54 @@ class _ModeTab extends StatelessWidget {
 }
 
 class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({required this.category});
+  const _CategoryChip({required this.category, required this.active, required this.onTap});
+
   final Category category;
+  final bool active;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: 64,
-      child: Column(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.cercaSurfaceTint,
-              border: Border.all(color: const Color(0xFFEAD6D2)),
-              borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Column(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: active ? AppColors.cercaPrimary : AppColors.cercaSurfaceTint,
+                border: Border.all(color: active ? AppColors.cercaPrimary : const Color(0xFFEAD6D2)),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                category.mono,
+                style: CercaText.sora(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: active ? Colors.white : AppColors.cercaPrimary,
+                ),
+              ),
             ),
-            child: Text(category.mono, style: CercaText.sora(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.cercaPrimary)),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            category.label,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: CercaText.sora(fontSize: 10.5, color: AppColors.cercaTextSecondary, height: 1.2),
-          ),
-        ],
+            const SizedBox(height: 6),
+            Text(
+              category.label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: CercaText.sora(
+                fontSize: 10.5,
+                color: active ? AppColors.cercaPrimary : AppColors.cercaTextSecondary,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+                height: 1.2,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

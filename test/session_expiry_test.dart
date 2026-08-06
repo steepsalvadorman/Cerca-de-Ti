@@ -12,12 +12,25 @@ import 'package:cerca/features/auth/application/auth_controller.dart';
 /// session first and reject the next call with a 401 the same way an
 /// expired token would.
 class _StubAdapter implements HttpClientAdapter {
-  _StubAdapter(this.responses);
+  _StubAdapter(this.responses, {this.queued = const {}});
 
   final Map<String, ResponseBody> responses;
 
+  /// Responses consumed one per call before falling back to
+  /// [responses], for testing what happens across retries.
+  final Map<String, List<ResponseBody>> queued;
+
+  final Map<String, int> callCounts = {};
+
   @override
   Future<ResponseBody> fetch(RequestOptions options, Stream<Uint8List>? requestStream, Future<void>? cancelFuture) async {
+    callCounts[options.path] = (callCounts[options.path] ?? 0) + 1;
+
+    final pending = queued[options.path];
+    if (pending != null && pending.isNotEmpty) {
+      return pending.removeAt(0);
+    }
+
     final response = responses[options.path];
     if (response == null) {
       throw StateError('unexpected request to ${options.path}');
@@ -85,6 +98,32 @@ void main() {
 
     expect(container.read(authControllerProvider).value, isNull);
     expect(storage.cleared, isTrue, reason: 'the rejected token must not survive on disk');
+  });
+
+  test('an unreachable backend at startup keeps the session instead of logging out', () async {
+    // The backend runs on a plan whose instance sleeps when idle. The
+    // first launch after that used to be treated as "your token is bad"
+    // and silently signed the user out.
+    final storage = _FakeTokenStorage('stored-token');
+    final container = ProviderContainer(
+      overrides: [tokenStorageProvider.overrideWithValue(storage)],
+    );
+    addTearDown(container.dispose);
+
+    final adapter = _StubAdapter(
+      {'/me': _json(_meBody, 200)},
+      queued: {
+        // What a waking container answers before it is ready.
+        '/me': [_json('{"error":"service unavailable"}', 503)],
+      },
+    );
+    container.read(apiClientProvider).httpClientAdapter = adapter;
+
+    final session = await container.read(authControllerProvider.future);
+
+    expect(session, isNotNull, reason: 'the retry must ride out the cold start');
+    expect(storage.cleared, isFalse, reason: 'an unreachable server is not an invalid token');
+    expect(adapter.callCounts['/me'], 2);
   });
 
   test('a 401 without a token attached does not end the session', () async {

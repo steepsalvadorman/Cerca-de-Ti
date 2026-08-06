@@ -14,6 +14,12 @@ pub enum JobError {
     #[error("unauthorized operation")]
     Unauthorized,
 
+    #[error("ya enviaste una oferta para este trabajo")]
+    OfferAlreadySubmitted,
+
+    #[error("la oferta no es válida: revisa el precio y el tiempo estimado")]
+    InvalidOffer,
+
     #[error("database error: {0}")]
     Repository(String),
 }

@@ -1,0 +1,80 @@
+name: Tests
+
+# The gate every other workflow depends on. Without it a broken commit
+# reaches production: Render deploys the backend natively on push, and
+# the Android workflow ships an APK to testers.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call: {}
+
+jobs:
+  backend:
+    name: Backend (cargo test)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cerca
+          POSTGRES_PASSWORD: cerca
+          POSTGRES_DB: cerca
+        ports:
+          - 5432:5432
+        # Without this the test run starts before Postgres accepts
+        # connections and every #[sqlx::test] fails on a cold runner.
+        options: >-
+          --health-cmd "pg_isready -U cerca -d cerca"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # `#[sqlx::test]` creates a throwaway database per test from this.
+      DATABASE_URL: postgres://cerca:cerca@localhost:5432/cerca
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend
+
+      # Informational for now: there are ~16 pre-existing warnings
+      # (collapsible ifs, redundant closures, Result<_, ()>). Turn this
+      # into `-D warnings` once they are cleaned up, so it can start
+      # catching real problems instead of failing on day one.
+      - name: Lint (non-blocking)
+        continue-on-error: true
+        run: cargo clippy --all-targets
+
+      - name: Run tests
+        run: cargo test --all-targets
+
+  app:
+    name: App (flutter analyze + test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.4"
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code (freezed / riverpod)
+        run: dart run build_runner build
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test

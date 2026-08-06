@@ -126,7 +126,7 @@ final class TechnicianLocationProvider
 }
 
 String _$technicianLocationHash() =>
-    r'0f7fd28e81f3e5d46c0c82655b4a76f88b35bb03';
+    r'066f5a379e0dfb8ed015097716bab330bf776daf';
 
 /// Polls `GET /jobs/{id}/location` every few seconds while a client is
 /// looking at the tracking screen — the backend has no push/websocket
@@ -201,7 +201,7 @@ final class LocationSharingControllerProvider
 }
 
 String _$locationSharingControllerHash() =>
-    r'30eaeeae429e6f031de41b42ba0bad9bbc72b0dc';
+    r'41d8065d97298f9f998289f97e7b5a7a44a9d193';
 
 /// The signed-in technician's live-location broadcast for whichever job is
 /// active: periodically reads the device's GPS position and pushes it via

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::features::job::domain::{JobError, JobRepository};
+use crate::features::job::domain::{JobError, JobRepository, JobStatus};
 
 pub struct ChooseOfferInput {
     pub job_request_id: Uuid,
@@ -26,6 +26,16 @@ impl ChooseOfferUseCase {
 
         if job.client_id != input.client_id {
             return Err(JobError::Unauthorized);
+        }
+
+        // Choosing is a one-time decision taken while the job is still
+        // open. Without this, a client could swap the technician on a job
+        // that is already under way — or already finished and rated.
+        if job.status != JobStatus::Pending {
+            return Err(JobError::InvalidStatusTransition);
+        }
+        if job.technician_profile_id.is_some() {
+            return Err(JobError::InvalidStatusTransition);
         }
 
         let offer = self.job_repo

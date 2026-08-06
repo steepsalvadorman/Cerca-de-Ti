@@ -28,8 +28,12 @@ const String apiBaseUrl = String.fromEnvironment(
 Dio buildApiClient(Ref ref, TokenStorage tokenStorage) {
   final dio = Dio(BaseOptions(
     baseUrl: apiBaseUrl,
-    connectTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(seconds: 10),
+    // Generous on purpose: the backend's hosting plan puts the instance
+    // to sleep when idle, and the first request after that has to wait
+    // for a container to start. A 10s ceiling turned every such request
+    // into a spurious "no se pudo conectar".
+    connectTimeout: const Duration(seconds: 20),
+    receiveTimeout: const Duration(seconds: 40),
   ));
 
   dio.interceptors.add(InterceptorsWrapper(

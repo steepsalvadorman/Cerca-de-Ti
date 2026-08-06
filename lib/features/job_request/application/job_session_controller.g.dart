@@ -96,7 +96,7 @@ final class JobSessionControllerProvider
 }
 
 String _$jobSessionControllerHash() =>
-    r'aaa8b674fc7ee3a2a67e364939bd0939dd7f3e9b';
+    r'8e2e447c34b2b2b9b62d6b728f90ba67582d559a';
 
 /// Bridges the app's single-shared-session UI flow (CercaController) into
 /// the backend's job-id-keyed model: holds the id of whichever job the

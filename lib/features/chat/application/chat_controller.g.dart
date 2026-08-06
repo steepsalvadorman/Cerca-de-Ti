@@ -115,7 +115,7 @@ final class ChatMessagesProvider
   }
 }
 
-String _$chatMessagesHash() => r'36f63ee61b14c1e58675f193ffa35a5b0b23e053';
+String _$chatMessagesHash() => r'd426e89a0928f5ce3cedb11a41dfd57538c5a353';
 
 /// Polls `GET /jobs/{id}/messages` every few seconds while a chat is on
 /// screen — the backend has no push/websocket support.

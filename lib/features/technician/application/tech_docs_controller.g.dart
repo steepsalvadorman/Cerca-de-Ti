@@ -44,7 +44,7 @@ final class TechDocsControllerProvider
 }
 
 String _$techDocsControllerHash() =>
-    r'a56088ce234898b8ff914e48e30f0b9530f00d45';
+    r'4edd6a7253f0d1c43c71dd4ad67ad716325ab454';
 
 /// The signed-in technician's document checklist
 /// (`GET /technician/documents`, plus the upload-url/confirm pair).

@@ -1,5 +1,6 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../../core/network/network_providers.dart';
 import '../data/auth_repository.dart';
 import '../domain/auth_session.dart';
@@ -30,12 +31,27 @@ class AuthController extends _$AuthController {
     }
     if (token == null) return null;
 
-    try {
-      final user = await ref.read(authRepositoryProvider).me();
-      return AuthSession(token: token, user: user);
-    } catch (_) {
-      await storage.clear();
-      return null;
+    // The backend runs on a plan whose instance sleeps when idle and can
+    // take the better part of a minute to wake. Retrying spans that wake
+    // window, so the first launch of the day restores the session instead
+    // of bouncing the user to the login screen.
+    const attemptDelays = [Duration(seconds: 2), Duration(seconds: 5), Duration(seconds: 10)];
+
+    for (var attempt = 0; ; attempt++) {
+      try {
+        final user = await ref.read(authRepositoryProvider).me();
+        return AuthSession(token: token, user: user);
+      } on ApiException catch (e) {
+        // Only the server saying "this token is no good" ends the
+        // session. Treating every failure as a bad token used to log
+        // people out whenever the backend was merely unreachable.
+        if (e.isUnauthorized) {
+          await storage.clear();
+          return null;
+        }
+        if (attempt >= attemptDelays.length) rethrow;
+        await Future<void>.delayed(attemptDelays[attempt]);
+      }
     }
   }
 

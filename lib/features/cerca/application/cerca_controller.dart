@@ -1,5 +1,6 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../auth/application/auth_controller.dart';
 import '../domain/entities/doc_requirement.dart';
 import '../domain/entities/fee_type.dart';
 import '../domain/entities/job_offer.dart';
@@ -16,7 +17,16 @@ part 'cerca_controller.g.dart';
 @Riverpod(keepAlive: true)
 class CercaController extends _$CercaController {
   @override
-  CercaState build() => const CercaState();
+  CercaState build() {
+    // This object is deliberately kept alive across navigation, which
+    // also means it survives sign-out: without this, the next account
+    // inherits the previous one's trade categories, coverage radius,
+    // chosen payment method and rating.
+    ref.listen(authControllerProvider, (_, next) {
+      if (next.value == null) state = const CercaState();
+    });
+    return const CercaState();
+  }
 
   void setLoginName(String name) => state = state.copyWith(loginName: name);
 

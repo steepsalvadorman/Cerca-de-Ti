@@ -108,10 +108,25 @@ impl JobRequest {
         }
     }
 
-    pub fn pay_fee(&mut self) {
+    /// Records the contact fee as paid and starts the job.
+    ///
+    /// Idempotent on purpose: a retried request (flaky network, an
+    /// impatient double tap) must not be an error, but it must also not
+    /// replay the state change — without the early return, paying twice
+    /// on a finished job would reset it to `Active` at step 0, undoing
+    /// a completed job.
+    pub fn pay_fee(&mut self) -> Result<(), JobError> {
+        if self.fee_paid {
+            return Ok(());
+        }
+        if self.status != JobStatus::Pending {
+            return Err(JobError::InvalidStatusTransition);
+        }
+
         self.fee_paid = true;
         self.status = JobStatus::Active;
         self.timeline_step = 0; // Confirmado
+        Ok(())
     }
 
     pub fn advance_timeline(&mut self) -> Result<(), JobError> {

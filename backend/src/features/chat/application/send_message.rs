@@ -58,6 +58,12 @@ impl SendMessageUseCase {
             return Err(ChatError::Unauthorized);
         }
 
+        // Cerca's whole business model is the contact fee, so the channel
+        // that hands over contact details stays shut until it is paid.
+        if !job.fee_paid {
+            return Err(ChatError::FeeNotPaid);
+        }
+
         let message = ChatMessage::new(
             input.job_request_id,
             input.sender_id,

@@ -94,7 +94,7 @@ class CercaSeedData {
     DocRequirement(key: 'cedula', label: 'Cédula de identidad', mono: 'CI'),
     DocRequirement(key: 'antecedentes', label: 'Certificado de antecedentes', mono: 'CA'),
     DocRequirement(key: 'especialidad', label: 'Certificado de especialidad', mono: 'CE'),
-    DocRequirement(key: 'seguro', label: 'Seguro de responsabilidad (opcional)', mono: 'SR'),
+    DocRequirement(key: 'seguro', label: 'Seguro de responsabilidad (opcional)', mono: 'SR', mandatory: false),
   ];
 
   static const List<TimelineStepDef> timelineSteps = [

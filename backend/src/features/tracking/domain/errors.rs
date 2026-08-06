@@ -8,6 +8,9 @@ pub enum TrackingError {
     #[error("unauthorized tracking access")]
     Unauthorized,
 
+    #[error("la tarifa de contacto de Cerca aún no está pagada")]
+    FeeNotPaid,
+
     #[error("database error: {0}")]
     Repository(String),
 }

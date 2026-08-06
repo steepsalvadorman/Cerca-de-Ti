@@ -74,7 +74,7 @@ final class JobOffersProvider
   }
 }
 
-String _$jobOffersHash() => r'd0e454f53d9c9f0de5c4a77e63d874875da4bb19';
+String _$jobOffersHash() => r'bdfb0c5fcb7762f5cf57d8225254e2ba4ece10b7';
 
 /// Polls `GET /jobs/{id}/offers` every few seconds while a bidding job's
 /// offer list is on screen — the backend has no push/websocket support,

@@ -48,9 +48,14 @@ class _TechDocsScreenState extends ConsumerState<TechDocsScreen> {
   Widget build(BuildContext context) {
     final docsAsync = ref.watch(techDocsControllerProvider);
     final docs = docsAsync.value ?? const <TechnicianDocumentStatus>[];
-    final uploadedCount = docs.where((d) => d.isUploaded).length;
-    final totalCount = CercaSeedData.docRequirements.length;
-    final allUploaded = docs.isNotEmpty && uploadedCount == totalCount;
+    // Progress tracks the mandatory documents only, matching what the
+    // backend actually verifies against. `seguro` is optional, so it is
+    // still listed and uploadable but does not hold the technician back.
+    final mandatory = CercaSeedData.docRequirements.where((d) => d.mandatory).toList();
+    bool isUploaded(String key) => docs.any((d) => d.documentKey == key && d.isUploaded);
+    final uploadedCount = mandatory.where((d) => isUploaded(d.key)).length;
+    final totalCount = mandatory.length;
+    final allUploaded = uploadedCount == totalCount;
     final userName = ref.watch(authControllerProvider).value?.user.name.trim() ?? '';
     final initials = userName.isEmpty ? '?' : userName[0].toUpperCase();
 
@@ -63,7 +68,7 @@ class _TechDocsScreenState extends ConsumerState<TechDocsScreen> {
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
               child: Row(
                 children: [
-                  BackCircleButton(onTap: () => context.go(RoutePaths.welcome)),
+                  BackCircleButton(onTap: () => context.go(RoutePaths.techProfile)),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text('Verifica tu perfil', style: CercaText.lora(fontSize: 19)),
@@ -111,7 +116,7 @@ class _TechDocsScreenState extends ConsumerState<TechDocsScreen> {
                     for (final doc in CercaSeedData.docRequirements)
                       _DocRow(
                         doc: doc,
-                        uploaded: docs.any((d) => d.documentKey == doc.key && d.isUploaded),
+                        uploaded: isUploaded(doc.key),
                         uploading: _uploading == doc.key,
                         onTap: _uploading == null ? () => _upload(doc.key) : null,
                       ),

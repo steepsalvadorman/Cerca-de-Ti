@@ -102,13 +102,22 @@ impl IntoResponse for AppError {
             AppError::Job(JobError::JobNotFound)
             | AppError::Job(JobError::OfferNotFound) => (StatusCode::NOT_FOUND, self.to_string()),
             AppError::Job(JobError::Unauthorized) => (StatusCode::FORBIDDEN, self.to_string()),
-            AppError::Job(JobError::InvalidStatusTransition) => (StatusCode::BAD_REQUEST, self.to_string()),
+            AppError::Job(JobError::InvalidStatusTransition)
+            | AppError::Job(JobError::InvalidOffer) => (StatusCode::BAD_REQUEST, self.to_string()),
+            AppError::Job(JobError::OfferAlreadySubmitted) => (StatusCode::CONFLICT, self.to_string()),
             AppError::Job(JobError::Repository(_)) => {
                 tracing::error!(error = %self, "job internal error");
                 (StatusCode::INTERNAL_SERVER_ERROR, "internal server error".to_string())
             }
 
             AppError::Chat(ChatError::Unauthorized) => (StatusCode::FORBIDDEN, self.to_string()),
+            // 402 rather than 403: the caller is who they claim and is a
+            // participant in the job — the only thing missing is Cerca's
+            // contact fee, and the client can fix that by paying.
+            AppError::Chat(ChatError::FeeNotPaid)
+            | AppError::Tracking(TrackingError::FeeNotPaid) => {
+                (StatusCode::PAYMENT_REQUIRED, self.to_string())
+            }
             AppError::Chat(ChatError::Repository(_)) => {
                 tracing::error!(error = %self, "chat internal error");
                 (StatusCode::INTERNAL_SERVER_ERROR, "internal server error".to_string())

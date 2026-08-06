@@ -29,7 +29,7 @@ impl PayFeeUseCase {
         }
 
         job.payment_method = Some(input.payment_method);
-        job.pay_fee();
+        job.pay_fee()?;
 
         self.job_repo.save_job_request(&job).await?;
         Ok(())

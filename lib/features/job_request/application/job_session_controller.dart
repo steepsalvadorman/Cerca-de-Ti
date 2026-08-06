@@ -1,6 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/network/network_providers.dart';
+import '../../auth/application/auth_controller.dart';
 import '../data/job_repository.dart';
 
 part 'job_session_controller.g.dart';
@@ -15,7 +16,14 @@ JobRepository jobRepository(Ref ref) => JobRepository(ref.watch(apiClientProvide
 @Riverpod(keepAlive: true)
 class JobSessionController extends _$JobSessionController {
   @override
-  String? build() => null;
+  String? build() {
+    // Being keepAlive, this survives sign-out on its own, and the next
+    // account would inherit the previous one's active job.
+    ref.listen(authControllerProvider, (_, next) {
+      if (next.value == null) clear();
+    });
+    return null;
+  }
 
   void setJobId(String jobId) => state = jobId;
 

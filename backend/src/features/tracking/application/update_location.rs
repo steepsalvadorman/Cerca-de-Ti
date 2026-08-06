@@ -49,6 +49,12 @@ impl UpdateLocationUseCase {
             return Err(TrackingError::Unauthorized);
         }
 
+        // Live location is part of what the contact fee buys; no point
+        // collecting GPS for a job the client never paid for.
+        if !job.fee_paid {
+            return Err(TrackingError::FeeNotPaid);
+        }
+
         let location = TechnicianLocation::new(
             input.job_request_id,
             input.latitude,

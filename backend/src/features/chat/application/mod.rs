@@ -55,6 +55,12 @@ impl GetMessagesUseCase {
             return Err(ChatError::Unauthorized);
         }
 
+        // Same gate as sending: reading the thread would expose whatever
+        // contact details were already exchanged.
+        if !job.fee_paid {
+            return Err(ChatError::FeeNotPaid);
+        }
+
         self.chat_repo.find_messages_by_job_id(job_request_id).await
     }
 }

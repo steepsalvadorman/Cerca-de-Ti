@@ -55,6 +55,10 @@ impl GetLocationUseCase {
             return Err(TrackingError::Unauthorized);
         }
 
+        if !job.fee_paid {
+            return Err(TrackingError::FeeNotPaid);
+        }
+
         self.tracking_repo
             .find_location_by_job_id(job_request_id)
             .await?
