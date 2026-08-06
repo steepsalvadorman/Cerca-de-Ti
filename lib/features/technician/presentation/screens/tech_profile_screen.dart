@@ -85,7 +85,7 @@ class _TechProfileScreenState extends ConsumerState<TechProfileScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            CercaHeader(title: 'Mi perfil', onBack: () => context.go(RoutePaths.techDocs)),
+            const CercaHeader(title: 'Mi perfil'),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),

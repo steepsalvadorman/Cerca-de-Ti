@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -22,6 +23,7 @@ import '../../features/technician/presentation/screens/technician_jobs_screen.da
 import '../../features/technician/presentation/screens/technician_profile_screen.dart';
 import '../../features/tracking/presentation/screens/tracking_screen.dart';
 import '../../features/welcome/presentation/screens/welcome_screen.dart';
+import 'app_shell.dart';
 import 'route_paths.dart';
 
 part 'app_router.g.dart';
@@ -102,24 +104,49 @@ GoRouter appRouter(Ref ref) {
         builder: (context, state) => const TechDocsScreen(),
       ),
       GoRoute(
-        path: RoutePaths.techProfile,
-        builder: (context, state) => const TechProfileScreen(),
-      ),
-      GoRoute(
-        path: RoutePaths.technicianJobs,
-        builder: (context, state) => const TechnicianJobsScreen(),
-      ),
-      GoRoute(
         path: RoutePaths.technicianJobDetail,
         builder: (context, state) => const TechnicianJobDetailScreen(),
       ),
       GoRoute(
-        path: RoutePaths.home,
-        builder: (context, state) => const HomeScreen(),
-      ),
-      GoRoute(
         path: RoutePaths.providerProfile,
         builder: (context, state) => const TechnicianProfileScreen(),
+      ),
+      // Client hub: Inicio / Cuenta share one persistent bottom nav instead
+      // of the header-avatar shortcut being the only way between them.
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, shell) => AppShell(
+          navigationShell: shell,
+          tabs: const [
+            AppShellTab(label: 'Inicio', icon: Icons.home_outlined, activeIcon: Icons.home_rounded),
+            AppShellTab(label: 'Cuenta', icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded),
+          ],
+        ),
+        branches: [
+          StatefulShellBranch(routes: [
+            GoRoute(path: RoutePaths.home, builder: (context, state) => const HomeScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: RoutePaths.clientAccount, builder: (context, state) => const ClientAccountScreen()),
+          ]),
+        ],
+      ),
+      // Technician hub: Trabajos / Perfil, same pattern.
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, shell) => AppShell(
+          navigationShell: shell,
+          tabs: const [
+            AppShellTab(label: 'Trabajos', icon: Icons.work_outline_rounded, activeIcon: Icons.work_rounded),
+            AppShellTab(label: 'Perfil', icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded),
+          ],
+        ),
+        branches: [
+          StatefulShellBranch(routes: [
+            GoRoute(path: RoutePaths.technicianJobs, builder: (context, state) => const TechnicianJobsScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: RoutePaths.techProfile, builder: (context, state) => const TechProfileScreen()),
+          ]),
+        ],
       ),
       GoRoute(
         path: RoutePaths.jobMode,
@@ -152,10 +179,6 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: RoutePaths.jobRating,
         builder: (context, state) => const JobRatingScreen(),
-      ),
-      GoRoute(
-        path: RoutePaths.clientAccount,
-        builder: (context, state) => const ClientAccountScreen(),
       ),
     ],
   );

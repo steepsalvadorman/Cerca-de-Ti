@@ -95,7 +95,7 @@ class ClientAccountScreen extends ConsumerWidget {
       body: SafeArea(
         child: Column(
           children: [
-            CercaHeader(title: 'Mi cuenta', onBack: () => context.go(RoutePaths.home)),
+            const CercaHeader(title: 'Mi cuenta'),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
