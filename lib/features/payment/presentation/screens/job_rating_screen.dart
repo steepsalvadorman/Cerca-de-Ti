@@ -107,7 +107,9 @@ class _JobRatingScreenState extends ConsumerState<JobRatingScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        'Este monto se paga directo al técnico (efectivo o transferencia). Cerca no procesa el pago del trabajo — solo cobró la tarifa de servicio al iniciar el contacto.',
+                        job?.jobKind == 'bidding'
+                            ? 'El trabajo se paga directo al técnico. Cerca solo cobró S/ 4 por gestionar la licitación.'
+                            : 'El trabajo se paga directo al técnico. Cerca no cobra por el contacto directo ni procesa este pago.',
                         style: CercaText.sora(fontSize: 11.5, color: AppColors.cercaWarnText, height: 1.5),
                       ),
                     ),

@@ -63,6 +63,7 @@ pub async fn save_profile(
         .execute(SaveTechnicianProfileInput {
             user_id: current_user.user_id,
             oficio: body.oficio,
+            price_label: body.price_label,
             coverage_km: body.coverage_km,
             available_days: body.available_days,
             categories: body.categories,

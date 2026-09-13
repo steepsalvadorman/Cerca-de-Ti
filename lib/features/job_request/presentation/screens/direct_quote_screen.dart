@@ -28,14 +28,16 @@ class _DirectQuoteScreenState extends ConsumerState<DirectQuoteScreen> {
     if (_accepting) return;
     setState(() => _accepting = true);
     try {
+      final draft = ref.read(serviceRequestDraftProvider);
       final job = await ref.read(jobRepositoryProvider).createJob(
             technicianProfileId: provider.id,
             jobKind: 'direct',
+            title: draft.isComplete ? draft.title : provider.oficio,
           );
       ref.read(jobSessionControllerProvider.notifier).setJobId(job.id);
       ref.read(cercaControllerProvider.notifier).acceptDirect();
       if (!mounted) return;
-      context.go(RoutePaths.jobFee);
+      context.go(RoutePaths.tracking);
     } catch (e) {
       if (!mounted) return;
       final message = e is ApiException ? e.message : 'No se pudo aceptar la cotización.';
@@ -48,6 +50,7 @@ class _DirectQuoteScreenState extends ConsumerState<DirectQuoteScreen> {
   @override
   Widget build(BuildContext context) {
     final cercaState = ref.watch(cercaControllerProvider);
+    final requestDraft = ref.watch(serviceRequestDraftProvider);
     final providersAsync = ref.watch(providersControllerProvider);
     final providersPage = providersAsync.value;
 
@@ -97,10 +100,15 @@ class _DirectQuoteScreenState extends ConsumerState<DirectQuoteScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Fuga de agua en el baño', style: CercaText.sora(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                          Text(
+                            requestDraft.description.isNotEmpty
+                                ? requestDraft.description
+                                : 'Servicio de ${provider.oficio}',
+                            style: CercaText.sora(fontSize: 13.5, fontWeight: FontWeight.w600),
+                          ),
                           const SizedBox(height: 4),
                           Text(
-                            'Gasfitería · Av. Providencia 1234, depto 502',
+                            '${requestDraft.categoryLabel ?? provider.oficio} · contratación directa',
                             style: CercaText.sora(fontSize: 12, color: AppColors.cercaTextSecondary, height: 1.5),
                           ),
                           const SizedBox(height: 10),
@@ -214,7 +222,7 @@ class _DirectQuoteScreenState extends ConsumerState<DirectQuoteScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
               child: Text(
-                'Al aceptar, Cerca cobra una tarifa de contacto. El pago del trabajo se acuerda y se paga directo con el técnico.',
+                'El contacto directo es gratuito. El pago del trabajo se acuerda y se realiza directamente con el técnico.',
                 textAlign: TextAlign.center,
                 style: CercaText.sora(fontSize: 11, color: AppColors.cercaTextMuted, height: 1.4),
               ),

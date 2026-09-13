@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/network/network_providers.dart';
@@ -5,6 +6,35 @@ import '../../auth/application/auth_controller.dart';
 import '../data/job_repository.dart';
 
 part 'job_session_controller.g.dart';
+
+class ServiceRequestDraft {
+  const ServiceRequestDraft({this.categoryId, this.categoryLabel, this.description = ''});
+
+  final String? categoryId;
+  final String? categoryLabel;
+  final String description;
+
+  bool get isComplete => categoryId != null && description.trim().isNotEmpty;
+  String get title => '${categoryLabel ?? 'Servicio'}: ${description.trim()}';
+}
+
+class ServiceRequestDraftController extends Notifier<ServiceRequestDraft> {
+  @override
+  ServiceRequestDraft build() => const ServiceRequestDraft();
+
+  void save({required String categoryId, required String categoryLabel, required String description}) {
+    state = ServiceRequestDraft(
+      categoryId: categoryId,
+      categoryLabel: categoryLabel,
+      description: description.trim(),
+    );
+  }
+
+  void clear() => state = const ServiceRequestDraft();
+}
+
+final serviceRequestDraftProvider =
+    NotifierProvider<ServiceRequestDraftController, ServiceRequestDraft>(ServiceRequestDraftController.new);
 
 @Riverpod(keepAlive: true)
 JobRepository jobRepository(Ref ref) => JobRepository(ref.watch(apiClientProvider));

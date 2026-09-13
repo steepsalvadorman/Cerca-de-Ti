@@ -23,19 +23,33 @@ class TechProfileScreen extends ConsumerStatefulWidget {
 
 class _TechProfileScreenState extends ConsumerState<TechProfileScreen> {
   final _oficioController = TextEditingController();
+  final _priceController = TextEditingController();
   bool _prefilled = false;
   bool _saved = false;
 
   @override
   void dispose() {
     _oficioController.dispose();
+    _priceController.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
     final cercaState = ref.read(cercaControllerProvider);
+    if (_oficioController.text.trim().isEmpty ||
+        _priceController.text.trim().isEmpty ||
+        cercaState.techCategories.isEmpty ||
+        cercaState.availableDays.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Completa oficio, tarifa, categorías y al menos un día disponible.'),
+        ),
+      );
+      return;
+    }
     await ref.read(techProfileControllerProvider.notifier).save(
           oficio: _oficioController.text.trim(),
+          priceLabel: _priceController.text.trim(),
           coverageKm: cercaState.coverageKm,
           availableDays: cercaState.availableDays.toList(),
           categories: cercaState.techCategories.toList(),
@@ -63,6 +77,7 @@ class _TechProfileScreenState extends ConsumerState<TechProfileScreen> {
     if (profile != null && !_prefilled) {
       _prefilled = true;
       _oficioController.text = profile.oficio;
+      _priceController.text = profile.priceLabel;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         for (final c in profile.categories) {
           if (!state.techCategories.contains(c)) controller.toggleTechCategory(c);
@@ -107,6 +122,19 @@ class _TechProfileScreenState extends ConsumerState<TechProfileScreen> {
                       ],
                     ),
                     const SizedBox(height: 18),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.cercaBackground,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Tú completas tu especialidad, cobertura y disponibilidad. Cerca genera la calificación, las reseñas y el estado de verificación.',
+                        style: CercaText.sora(fontSize: 11.5, color: AppColors.cercaTextSecondary, height: 1.4),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     _FieldLabel('Nombre'),
                     _ReadonlyField(userName),
                     const SizedBox(height: 14),
@@ -116,6 +144,20 @@ class _TechProfileScreenState extends ConsumerState<TechProfileScreen> {
                       style: CercaText.sora(fontSize: 13.5),
                       decoration: InputDecoration(
                         hintText: 'Ej: Gasfitero',
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.cercaBorder)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.cercaBorder)),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _FieldLabel('Tarifa referencial'),
+                    TextField(
+                      controller: _priceController,
+                      style: CercaText.sora(fontSize: 13.5),
+                      decoration: InputDecoration(
+                        hintText: 'Ej: Desde S/ 70',
                         filled: true,
                         fillColor: Colors.white,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -212,7 +254,7 @@ class _TechProfileScreenState extends ConsumerState<TechProfileScreen> {
                       ),
                       const SizedBox(height: 10),
                       InkWell(
-                        onTap: () => context.go(RoutePaths.technicianJobs),
+                        onTap: () => context.go(RoutePaths.techDocs),
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
                           width: double.infinity,
@@ -222,7 +264,7 @@ class _TechProfileScreenState extends ConsumerState<TechProfileScreen> {
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: AppColors.cercaPrimary),
                           ),
-                          child: Text('Ir a mis trabajos →', style: CercaText.sora(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.cercaPrimary)),
+                          child: Text('Continuar con la verificación →', style: CercaText.sora(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.cercaPrimary)),
                         ),
                       ),
                     ],

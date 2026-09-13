@@ -106,19 +106,19 @@ class CercaSeedData {
 
   static const Map<FeeType, FeeConfig> feeConfig = {
     FeeType.direct: FeeConfig(
-      title: 'Tarifa de contacto',
-      amount: 2990,
-      desc: 'Cerca cobra esta tarifa por conectarte con el técnico y validar la solicitud. El trabajo en sí se paga directo a él.',
+      title: 'Contacto directo gratuito',
+      amount: 0,
+      desc: 'Contactar directamente con un técnico es gratis. El trabajo se acuerda y se paga directamente al profesional.',
     ),
     FeeType.bidding: FeeConfig(
       title: 'Tarifa de licitación',
-      amount: 4990,
-      desc: 'Cerca cobra esta tarifa por gestionar la licitación entre varios técnicos verificados. El trabajo en sí se paga directo al técnico elegido.',
+      amount: 4,
+      desc: 'Cerca cobra S/ 4 por gestionar la licitación entre varios técnicos verificados. El trabajo se paga directamente al técnico elegido.',
     ),
     FeeType.project: FeeConfig(
-      title: 'Tarifa de agendamiento',
-      amount: 4990,
-      desc: 'Cerca cobra esta tarifa por coordinar la visita técnica y conectar con el equipo verificado. La obra y la movilización se pagan directo al equipo.',
+      title: 'Solicitud de proyecto gratuita',
+      amount: 0,
+      desc: 'Solicitar una cotización de proyecto es gratis. La obra y la movilización se pagan directamente al equipo.',
     ),
   };
 

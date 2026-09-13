@@ -9,8 +9,8 @@ import '../../../auth/application/auth_controller.dart';
 import '../../../cerca/presentation/widgets/cerca_logo_mark.dart';
 import '../../../cerca/presentation/widgets/cerca_text_styles.dart';
 
-/// Animated brand intro: the CodeCraftPeru studio mark hands off to the
-/// Cerca mark, then auto-advances once the brand animation finishes AND
+/// Short Cerca brand intro. It advances once the 2.2-second presentation
+/// finishes AND
 /// the stored session (if any) has been restored — whichever comes
 /// last — landing on `/welcome` (signed in) or `/login` (signed out).
 /// Matches the source design's staggered CSS keyframe timings,
@@ -24,9 +24,6 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerProviderStateMixin {
-  bool _craftFadingOut = false;
-  bool _cercaEntered = false;
-  bool _showFooter = false;
   bool _showTitle = false;
   bool _showTagline = false;
   bool _navigated = false;
@@ -44,15 +41,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
       upperBound: 1.05,
     );
 
-    _schedule(1000, () => setState(() {
-          _craftFadingOut = true;
-          _cercaEntered = true;
-        }));
-    _schedule(1500, () => setState(() => _showFooter = true));
-    _schedule(1700, () => _breathe.repeat(reverse: true));
-    _schedule(1800, () => setState(() => _showTitle = true));
-    _schedule(2050, () => setState(() => _showTagline = true));
-    _schedule(3200, _finishAnimation);
+    _schedule(200, () => setState(() => _showTitle = true));
+    _schedule(450, () => setState(() => _showTagline = true));
+    _schedule(650, () => _breathe.repeat(reverse: true));
+    _schedule(2200, _finishAnimation);
   }
 
   void _schedule(int milliseconds, VoidCallback callback) {
@@ -132,34 +124,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        AnimatedOpacity(
-                          opacity: _craftFadingOut ? 0 : 1,
-                          duration: const Duration(milliseconds: 500),
-                          curve: Curves.easeIn,
-                          child: AnimatedScale(
-                            scale: _craftFadingOut ? 0.65 : 1,
-                            duration: const Duration(milliseconds: 500),
-                            curve: Curves.easeIn,
-                            child: const CodeCraftLogoMark(size: 82),
-                          ),
-                        ),
-                        AnimatedOpacity(
-                          opacity: _cercaEntered ? 1 : 0,
-                          duration: const Duration(milliseconds: 700),
-                          curve: Curves.easeOutBack,
-                          child: AnimatedScale(
-                            scale: _cercaEntered ? 1 : 0.5,
-                            duration: const Duration(milliseconds: 700),
-                            curve: Curves.easeOutBack,
-                            child: AnimatedBuilder(
-                              animation: _breathe,
-                              builder: (context, child) => Transform.scale(scale: _breathe.value, child: child),
-                              child: const CercaLogoMark(
-                                size: 98,
-                                lightStroke: Color(0xFFD1717C),
-                                accent: Color(0xFFE4939C),
-                              ),
-                            ),
+                        AnimatedBuilder(
+                          animation: _breathe,
+                          builder: (context, child) => Transform.scale(scale: _breathe.value, child: child),
+                          child: const CercaLogoMark(
+                            size: 98,
+                            lightStroke: Color(0xFFD1717C),
+                            accent: Color(0xFFE4939C),
                           ),
                         ),
                       ],
@@ -181,26 +152,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
                     ),
                   ),
                 ],
-              ),
-              Positioned(
-                bottom: 34,
-                left: 0,
-                right: 0,
-                child: AnimatedOpacity(
-                  opacity: _showFooter ? 1 : 0,
-                  duration: const Duration(milliseconds: 600),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const CodeCraftLogoMark(size: 16),
-                      const SizedBox(width: 7),
-                      Text(
-                        'Creado por CodeCraftPeru',
-                        style: CercaText.sora(fontSize: 11.5, fontWeight: FontWeight.w600, color: const Color(0xFF8C7D77)),
-                      ),
-                    ],
-                  ),
-                ),
               ),
             ],
           ),

@@ -20,6 +20,10 @@ class _ProfileView {
     required this.rating,
     required this.reviews,
     required this.priceLabel,
+    this.coverageKm,
+    this.availableDays = const [],
+    this.categories = const [],
+    this.isVerified = false,
     this.team,
   });
 
@@ -30,6 +34,10 @@ class _ProfileView {
   final double rating;
   final int reviews;
   final String priceLabel;
+  final int? coverageKm;
+  final List<String> availableDays;
+  final List<String> categories;
+  final bool isVerified;
   final TechTeam? team;
 }
 
@@ -54,7 +62,19 @@ class TechnicianProfileScreen extends ConsumerWidget {
       } else {
         for (final t in providersPage.technicians) {
           if (t.id == state.selectedTechId) {
-            profile = _ProfileView(mono: t.mono, name: t.name, oficio: t.oficio, distance: t.distance, rating: t.rating, reviews: t.reviews, priceLabel: t.priceLabel);
+            profile = _ProfileView(
+              mono: t.mono,
+              name: t.name,
+              oficio: t.oficio,
+              distance: t.distance,
+              rating: t.rating,
+              reviews: t.reviews,
+              priceLabel: t.priceLabel,
+              coverageKm: t.coverageKm,
+              availableDays: t.availableDays,
+              categories: t.categories,
+              isVerified: t.isVerified,
+            );
             break;
           }
         }
@@ -94,7 +114,9 @@ class TechnicianProfileScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    height: 110,
+                    // Keep the navigation control and the overlapping avatar
+                    // in separate vertical zones on every screen size.
+                    height: 142,
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
@@ -108,11 +130,25 @@ class TechnicianProfileScreen extends ConsumerWidget {
                         padding: const EdgeInsets.only(left: 20, top: 8),
                         child: Align(
                           alignment: Alignment.topLeft,
-                          child: BackCircleButton(
-                            onTap: () => context.go(RoutePaths.home),
-                            color: Colors.white.withValues(alpha: 0.25),
-                            iconColor: Colors.white,
-                            border: false,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              BackCircleButton(
+                                onTap: () => context.go(RoutePaths.home),
+                                color: Colors.white,
+                                iconColor: AppColors.cercaPrimary,
+                                border: false,
+                              ),
+                              const SizedBox(width: 7),
+                              Text(
+                                'Volver',
+                                style: CercaText.sora(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -145,8 +181,10 @@ class TechnicianProfileScreen extends ConsumerWidget {
                               Row(
                                 children: [
                                   Text(provider.name, style: CercaText.lora(fontSize: 20)),
-                                  const SizedBox(width: 8),
-                                  const VerifiedBadge(),
+                                  if (provider.isVerified) ...[
+                                    const SizedBox(width: 8),
+                                    const VerifiedBadge(),
+                                  ],
                                 ],
                               ),
                               const SizedBox(height: 2),
@@ -170,45 +208,45 @@ class TechnicianProfileScreen extends ConsumerWidget {
                                 _StatsRow(items: [
                                   _Stat('$crew', 'Integrantes'),
                                   _Stat('$projects', 'Proyectos'),
-                                  const _Stat('48h', 'Visita técnica'),
+                                  _Stat('${provider.rating}', 'Calificación'),
                                 ])
                               else
-                                const _StatsRow(items: [
-                                  _Stat('312', 'Trabajos'),
-                                  _Stat('6 años', 'Experiencia'),
-                                  _Stat('18 min', 'Respuesta'),
+                                _StatsRow(items: [
+                                  _Stat('${provider.rating}', 'Calificación'),
+                                  _Stat('${provider.reviews}', 'Reseñas'),
+                                  _Stat(provider.distance, 'Distancia'),
                                 ]),
-                              const SizedBox(height: 16),
-                              Text('Documentación verificada', style: CercaText.sora(fontSize: 13.5, fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 8),
-                              const _CheckLine('Cédula de identidad'),
-                              const _CheckLine('Certificado de antecedentes'),
-                              const _CheckLine('Certificado de especialidad'),
-                              const SizedBox(height: 16),
-                              Text('Tarifa referencial', style: CercaText.sora(fontSize: 13.5, fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 8),
-                              Text(
-                                '${provider.priceLabel} · visita técnica desde S/ 20',
-                                style: CercaText.sora(fontSize: 13, color: AppColors.cercaTextSecondary),
+                              const SizedBox(height: 7),
+                              const _DataSourceLabel(
+                                icon: Icons.auto_awesome_rounded,
+                                text: 'Datos calculados y verificados por Cerca',
                               ),
                               const SizedBox(height: 16),
-                              Text('Trabajos anteriores', style: CercaText.sora(fontSize: 13.5, fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 8),
-                              Row(
+                              _ProfileSection(
+                                title: 'Información del servicio',
+                                source: 'Información proporcionada por el técnico',
                                 children: [
-                                  Expanded(child: _PastJobTile(color: AppColors.cercaBorder)),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: _PastJobTile(color: AppColors.cercaSurfaceTint)),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: _PastJobTile(color: AppColors.cercaBorder)),
+                                  _DetailLine(
+                                    icon: Icons.payments_outlined,
+                                    label: 'Tarifa referencial',
+                                    value: provider.priceLabel,
+                                  ),
+                                  if (provider.coverageKm != null)
+                                    _DetailLine(
+                                      icon: Icons.location_on_outlined,
+                                      label: 'Cobertura',
+                                      value: 'Hasta ${provider.coverageKm} km',
+                                    ),
+                                  if (provider.availableDays.isNotEmpty)
+                                    _DetailLine(
+                                      icon: Icons.calendar_today_outlined,
+                                      label: 'Disponibilidad',
+                                      value: _dayLabels(provider.availableDays),
+                                    ),
                                 ],
                               ),
                               const SizedBox(height: 16),
-                              Text('Reseñas', style: CercaText.sora(fontSize: 13.5, fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 8),
-                              const _ReviewCard(author: 'Camila R.', text: 'Llegó puntual y dejó todo funcionando. Muy profesional.'),
-                              const SizedBox(height: 8),
-                              const _ReviewCard(author: 'Rodrigo T.', text: 'Buen precio y explicó todo antes de empezar.'),
+                              _VerificationCard(isVerified: provider.isVerified),
                               const SizedBox(height: 16),
                             ],
                           ),
@@ -262,6 +300,19 @@ class TechnicianProfileScreen extends ConsumerWidget {
       ),
     );
   }
+
+  String _dayLabels(List<String> days) {
+    const labels = {
+      'lun': 'Lun',
+      'mar': 'Mar',
+      'mie': 'Mié',
+      'jue': 'Jue',
+      'vie': 'Vie',
+      'sab': 'Sáb',
+      'dom': 'Dom',
+    };
+    return days.map((day) => labels[day] ?? day).join(', ');
+  }
 }
 
 class _StatsRow extends StatelessWidget {
@@ -306,69 +357,125 @@ class _Stat extends StatelessWidget {
   }
 }
 
-class _CheckLine extends StatelessWidget {
-  const _CheckLine(this.label);
-  final String label;
+class _DataSourceLabel extends StatelessWidget {
+  const _DataSourceLabel({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
+    return Row(
+      children: [
+        Icon(icon, size: 13, color: AppColors.cercaTextMuted),
+        const SizedBox(width: 5),
+        Flexible(child: Text(text, style: CercaText.sora(fontSize: 10.5, color: AppColors.cercaTextMuted))),
+      ],
+    );
+  }
+}
+
+class _ProfileSection extends StatelessWidget {
+  const _ProfileSection({required this.title, required this.source, required this.children});
+
+  final String title;
+  final String source;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.cercaBorder),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('✓', style: TextStyle(color: AppColors.cercaSuccessText, fontSize: 12.5)),
-          const SizedBox(width: 8),
-          Text(label, style: CercaText.sora(fontSize: 12.5)),
+          Text(title, style: CercaText.sora(fontSize: 13.5, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 3),
+          _DataSourceLabel(icon: Icons.edit_outlined, text: source),
+          const SizedBox(height: 12),
+          ...children,
         ],
       ),
     );
   }
 }
 
-class _PastJobTile extends StatelessWidget {
-  const _PastJobTile({required this.color});
-  final Color color;
+class _DetailLine extends StatelessWidget {
+  const _DetailLine({required this.icon, required this.label, required this.value});
+
+  final IconData icon;
+  final String label;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1,
-      child: DecoratedBox(
-        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10)),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Icon(icon, size: 19, color: AppColors.cercaPrimary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: CercaText.sora(fontSize: 10.5, color: AppColors.cercaTextMuted)),
+                const SizedBox(height: 1),
+                Text(value, style: CercaText.sora(fontSize: 12.5, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ReviewCard extends StatelessWidget {
-  const _ReviewCard({required this.author, required this.text});
-  final String author;
-  final String text;
+class _VerificationCard extends StatelessWidget {
+  const _VerificationCard({required this.isVerified});
+
+  final bool isVerified;
 
   @override
   Widget build(BuildContext context) {
+    final color = isVerified ? AppColors.cercaSuccessText : AppColors.cercaTextSecondary;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: AppColors.cercaBorder),
-        borderRadius: BorderRadius.circular(12),
+        color: isVerified ? AppColors.cercaSuccessBg : AppColors.cercaBackground,
+        border: Border.all(color: isVerified ? AppColors.cercaSuccessBorder : AppColors.cercaBorder),
+        borderRadius: BorderRadius.circular(14),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text.rich(
-            TextSpan(
-              style: CercaText.sora(fontSize: 12.5, fontWeight: FontWeight.w600),
+          Icon(isVerified ? Icons.verified_user_rounded : Icons.info_outline_rounded, color: color, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextSpan(text: '$author '),
-                TextSpan(text: '★★★★★', style: CercaText.sora(fontSize: 12.5, fontWeight: FontWeight.w400, color: AppColors.cercaStar)),
+                Text(
+                  isVerified ? 'Identidad y documentos verificados' : 'Verificación pendiente',
+                  style: CercaText.sora(fontSize: 12.5, fontWeight: FontWeight.w600, color: color),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  isVerified
+                      ? 'Cerca validó la documentación requerida para prestar servicios.'
+                      : 'Este técnico todavía no completó toda la validación documental.',
+                  style: CercaText.sora(fontSize: 11, color: AppColors.cercaTextSecondary, height: 1.35),
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 4),
-          Text(text, style: CercaText.sora(fontSize: 12, color: AppColors.cercaTextSecondary, height: 1.4)),
         ],
       ),
     );

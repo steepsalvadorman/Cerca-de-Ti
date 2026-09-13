@@ -36,7 +36,7 @@ class _ProjectQuoteScreenState extends ConsumerState<ProjectQuoteScreen> {
       ref.read(jobSessionControllerProvider.notifier).setJobId(job.id);
       ref.read(cercaControllerProvider.notifier).requestProjectVisit();
       if (!mounted) return;
-      context.go(RoutePaths.jobFee);
+      context.go(RoutePaths.tracking);
     } catch (e) {
       if (!mounted) return;
       final message = e is ApiException ? e.message : 'No se pudo solicitar la visita.';
@@ -190,7 +190,7 @@ class _ProjectQuoteScreenState extends ConsumerState<ProjectQuoteScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Cotización referencial. El equipo confirma el valor final tras una visita técnica. La obra y la movilización se pagan directo al equipo — Cerca solo cobra la tarifa de agendamiento de la visita.',
+                      'Solicitar el proyecto es gratuito. El equipo confirma el valor final tras una visita técnica; la obra y la movilización se pagan directamente al equipo.',
                       style: CercaText.sora(fontSize: 11.5, color: AppColors.cercaTextMuted, height: 1.5),
                     ),
                   ],

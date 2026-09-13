@@ -59,11 +59,36 @@ async fn creating_a_job_computes_the_fee_server_side(pool: PgPool) {
         .await
         .unwrap();
 
-    // 20 (soles) is the bidding fee — the frontend used to keep its own copy
-    // of this number with nothing tying it to what the backend would accept.
-    assert_eq!(job.fee_amount, 20);
+    // S/ 4 is the only launch fee and is owned by the backend.
+    assert_eq!(job.fee_amount, 4);
     assert!(job.mobility_included); // defaults to true when not specified
     assert_eq!(job.status.as_str(), "pending");
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn creating_a_job_rejects_incompatible_provider_assignments(pool: PgPool) {
+    let repo: Arc<dyn JobRepository> = Arc::new(PostgresJobRepository::new(pool.clone()));
+    let client_id = create_user(&pool, "client").await;
+
+    for (kind, technician_profile_id, tech_team_id) in [
+        ("direct", None, None),
+        ("bidding", Some(1), None),
+        ("bidding", None, Some(1)),
+        ("project", Some(1), None),
+    ] {
+        let result = CreateJobUseCase::new(repo.clone())
+            .execute(CreateJobInput {
+                client_id,
+                technician_profile_id,
+                tech_team_id,
+                job_kind: kind.to_string(),
+                title: None,
+                address: None,
+                mobility_included: None,
+            })
+            .await;
+        assert!(result.is_err(), "{kind} accepted an incompatible provider assignment");
+    }
 }
 
 #[sqlx::test(migrations = "./migrations")]

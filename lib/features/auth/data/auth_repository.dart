@@ -82,7 +82,13 @@ class AuthRepository {
     try {
       await _dio.post(
         '/technician/profile',
-        data: {'oficio': '', 'coverage_km': 5, 'available_days': <String>[], 'categories': <String>[]},
+        data: {
+          'oficio': '',
+          'price_label': 'A convenir',
+          'coverage_km': 5,
+          'available_days': <String>[],
+          'categories': <String>[],
+        },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
     } catch (_) {

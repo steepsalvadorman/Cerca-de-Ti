@@ -49,6 +49,7 @@ class _BiddingScreenState extends ConsumerState<BiddingScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(cercaControllerProvider);
     final controller = ref.watch(cercaControllerProvider.notifier);
+    final requestDraft = ref.watch(serviceRequestDraftProvider);
     final jobId = ref.watch(jobSessionControllerProvider);
     final offersAsync = jobId == null ? null : ref.watch(jobOffersProvider(jobId));
 
@@ -71,9 +72,34 @@ class _BiddingScreenState extends ConsumerState<BiddingScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Trabajo publicado · ${offers.length} ${offers.length == 1 ? 'oferta' : 'ofertas'}',
-                      style: CercaText.sora(fontSize: 12.5, color: AppColors.cercaTextSecondary),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.cercaSurfaceTint,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            requestDraft.categoryLabel ?? 'Solicitud de servicio',
+                            style: CercaText.sora(fontSize: 13.5, fontWeight: FontWeight.w600),
+                          ),
+                          if (requestDraft.description.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              requestDraft.description,
+                              style: CercaText.sora(fontSize: 12, color: AppColors.cercaTextSecondary),
+                            ),
+                          ],
+                          const SizedBox(height: 6),
+                          Text(
+                            '${offers.length} ${offers.length == 1 ? 'oferta recibida' : 'ofertas recibidas'}',
+                            style: CercaText.sora(fontSize: 11.5, color: AppColors.cercaPrimary),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -113,7 +139,7 @@ class _BiddingScreenState extends ConsumerState<BiddingScreen> {
                           onChoose: _choosing ? null : () => _choose(offer),
                         ),
                     Text(
-                      'Al elegir una oferta, Cerca cobra una tarifa de licitación. El pago del trabajo se acuerda directo con el técnico.',
+                      'Al elegir una oferta, Cerca cobra S/ 4 por la licitación. El pago del trabajo se acuerda directamente con el técnico.',
                       textAlign: TextAlign.center,
                       style: CercaText.sora(fontSize: 11, color: AppColors.cercaTextMuted, height: 1.4),
                     ),

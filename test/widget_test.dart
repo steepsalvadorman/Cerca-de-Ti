@@ -32,8 +32,12 @@ void main() {
 
     expect(find.text('Técnicos verificados, cerca de ti'), findsOneWidget);
 
-    // Let the splash's 3.2s auto-navigate timer fire.
-    await tester.pump(const Duration(milliseconds: 3300));
+    // It must remain visible for the configured minimum presentation time.
+    await tester.pump(const Duration(milliseconds: 2100));
+    expect(find.text('Cerca'), findsOneWidget);
+    expect(find.text('¿Eres nuevo? Crea tu cuenta'), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('¿Eres nuevo? Crea tu cuenta'), findsOneWidget);

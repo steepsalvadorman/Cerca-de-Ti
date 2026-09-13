@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../cerca/application/cerca_seed_data.dart';
 import '../../../cerca/presentation/widgets/back_circle_button.dart';
 import '../../../cerca/presentation/widgets/cerca_text_styles.dart';
+import '../../../technician/application/providers_controller.dart';
 import '../../application/job_session_controller.dart';
 
 class ModeChooserScreen extends ConsumerStatefulWidget {
@@ -18,18 +20,62 @@ class ModeChooserScreen extends ConsumerStatefulWidget {
 
 class _ModeChooserScreenState extends ConsumerState<ModeChooserScreen> {
   bool _creating = false;
+  String? _categoryId;
+  final _descriptionController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = ref.read(serviceRequestDraftProvider);
+    _categoryId = draft.categoryId ?? ref.read(selectedCategoryProvider);
+    _descriptionController.text = draft.description;
+  }
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  bool _saveDraft() {
+    final categoryId = _categoryId;
+    final description = _descriptionController.text.trim();
+    if (categoryId == null || description.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona una especialidad y describe el trabajo que necesitas.')),
+      );
+      return false;
+    }
+    final category = CercaSeedData.categories.firstWhere((item) => item.id == categoryId);
+    ref.read(serviceRequestDraftProvider.notifier).save(
+          categoryId: category.id,
+          categoryLabel: category.label,
+          description: description,
+        );
+    return true;
+  }
+
+  void _findTechnicians() {
+    if (!_saveDraft()) return;
+    ref.read(selectedCategoryProvider.notifier).select(_categoryId!);
+    context.go(RoutePaths.home);
+  }
 
   Future<void> _startBidding() async {
-    if (_creating) return;
+    if (_creating || !_saveDraft()) return;
     setState(() => _creating = true);
     try {
-      final job = await ref.read(jobRepositoryProvider).createJob(jobKind: 'bidding');
+      final draft = ref.read(serviceRequestDraftProvider);
+      final job = await ref.read(jobRepositoryProvider).createJob(
+            jobKind: 'bidding',
+            title: draft.title,
+          );
       ref.read(jobSessionControllerProvider.notifier).setJobId(job.id);
       if (!mounted) return;
       context.go(RoutePaths.jobBidding);
     } catch (e) {
       if (!mounted) return;
-      final message = e is ApiException ? e.message : 'No se pudo publicar el trabajo.';
+      final message = e is ApiException ? e.message : 'No se pudo enviar la solicitud.';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) setState(() => _creating = false);
@@ -57,26 +103,57 @@ class _ModeChooserScreenState extends ConsumerState<ModeChooserScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('¿Cómo prefieres resolverlo?', style: CercaText.lora(fontSize: 21)),
+                    Text('¿Qué servicio necesitas?', style: CercaText.lora(fontSize: 21)),
                     const SizedBox(height: 4),
                     Text(
-                      'Instalar termo eléctrico · Providencia',
+                      'Cuéntanos el oficio y el trabajo antes de elegir cómo contratar.',
                       style: CercaText.sora(fontSize: 13, color: AppColors.cercaTextSecondary, height: 1.5),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: _categoryId,
+                      decoration: InputDecoration(
+                        labelText: 'Especialidad técnica',
+                        hintText: 'Selecciona un oficio',
+                        prefixIcon: const Icon(Icons.handyman_outlined),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      items: [
+                        for (final category in CercaSeedData.categories)
+                          DropdownMenuItem(value: category.id, child: Text(category.label)),
+                      ],
+                      onChanged: (value) => setState(() => _categoryId = value),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _descriptionController,
+                      minLines: 3,
+                      maxLines: 4,
+                      maxLength: 180,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: InputDecoration(
+                        labelText: 'Trabajo requerido',
+                        hintText: 'Ej.: reparar una fuga debajo del lavadero',
+                        alignLabelWithHint: true,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text('¿Cómo prefieres contratar?', style: CercaText.lora(fontSize: 19)),
+                    const SizedBox(height: 12),
                     _OptionCard(
                       number: '1',
                       title: 'Contactar directo',
-                      description: 'Elige un técnico cercano en el mapa y coordina un precio directamente con él.',
-                      cta: 'Ver técnicos cercanos ›',
-                      onTap: () => context.go(RoutePaths.home),
+                      description: 'Veremos únicamente técnicos de la especialidad elegida para que compares y contactes uno.',
+                      cta: 'Buscar técnicos ›',
+                      onTap: _findTechnicians,
                     ),
                     const SizedBox(height: 14),
                     _OptionCard(
                       number: '2',
                       title: 'Licitación entre técnicos',
-                      description: 'Publica el trabajo y recibe ofertas de varios técnicos verificados. Elige la mejor combinación de precio y calidad.',
-                      cta: _creating ? 'Publicando…' : 'Publicar trabajo ›',
+                      description: 'Envía tu solicitud y recibe ofertas de varios técnicos verificados. Elige la mejor combinación de precio y calidad.',
+                      cta: _creating ? 'Enviando…' : 'Solicitar ofertas ›',
                       onTap: _startBidding,
                     ),
                   ],

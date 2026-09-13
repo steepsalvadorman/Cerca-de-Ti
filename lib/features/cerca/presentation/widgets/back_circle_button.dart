@@ -21,21 +21,32 @@ class BackCircleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: Container(
-        width: 32,
-        height: 32,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: border ? Border.all(color: AppColors.cercaBorder) : null,
-        ),
-        child: Text(
-          '‹',
-          style: TextStyle(color: iconColor, fontSize: 15),
+    return Tooltip(
+      message: 'Regresar',
+      child: Semantics(
+        button: true,
+        label: 'Regresar',
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: border ? Border.all(color: AppColors.cercaBorder) : null,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.10),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(Icons.arrow_back_rounded, color: iconColor, size: 19),
+          ),
         ),
       ),
     );

@@ -44,9 +44,7 @@ impl JobStatus {
 /// decision for the Peru market — confirm the actual amounts before launch.
 fn fee_amount_for(fee_type: &str) -> i32 {
     match fee_type {
-        "direct" => 12,
-        "bidding" => 20,
-        "project" => 20,
+        "bidding" => 4,
         _ => 0,
     }
 }
@@ -85,17 +83,19 @@ impl JobRequest {
         address: Option<String>,
         mobility_included: bool,
     ) -> Self {
+        let fee_amount = fee_amount_for(&fee_type);
+        let is_free = fee_amount == 0;
         Self {
             id: Uuid::new_v4(),
             client_id,
             technician_profile_id,
             tech_team_id,
             job_kind,
-            status: JobStatus::Pending,
+            status: if is_free { JobStatus::Active } else { JobStatus::Pending },
             timeline_step: 0,
-            fee_amount: fee_amount_for(&fee_type),
+            fee_amount,
             fee_type,
-            fee_paid: false,
+            fee_paid: is_free,
             payment_method: None,
             payment_done: false,
             mobility_included,
@@ -108,7 +108,8 @@ impl JobRequest {
         }
     }
 
-    /// Records the contact fee as paid and starts the job.
+    /// Records the bidding fee as paid and starts the job. Free jobs are
+    /// already active, so retries are harmless no-ops.
     ///
     /// Idempotent on purpose: a retried request (flaky network, an
     /// impatient double tap) must not be an error, but it must also not
@@ -146,11 +147,81 @@ impl JobRequest {
         if self.status != JobStatus::Completed {
             return Err(JobError::InvalidStatusTransition);
         }
+        if self.rating.is_some() {
+            return Err(JobError::InvalidStatusTransition);
+        }
         if !(1..=5).contains(&rating) {
             return Err(JobError::InvalidStatusTransition);
         }
         self.rating = Some(rating);
         self.comment = comment;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn job(kind: &str) -> JobRequest {
+        JobRequest::new(
+            Uuid::new_v4(),
+            None,
+            None,
+            kind.to_string(),
+            kind.to_string(),
+            None,
+            None,
+            true,
+        )
+    }
+
+    #[test]
+    fn only_bidding_has_the_four_sol_fee() {
+        let direct = job("direct");
+        let project = job("project");
+        let bidding = job("bidding");
+
+        assert_eq!((direct.fee_amount, direct.fee_paid, direct.status), (0, true, JobStatus::Active));
+        assert_eq!((project.fee_amount, project.fee_paid, project.status), (0, true, JobStatus::Active));
+        assert_eq!((bidding.fee_amount, bidding.fee_paid, bidding.status), (4, false, JobStatus::Pending));
+    }
+
+    #[test]
+    fn bidding_stays_pending_until_its_fee_is_paid() {
+        let mut bidding = job("bidding");
+        bidding.pay_fee().unwrap();
+        assert!(bidding.fee_paid);
+        assert_eq!(bidding.status, JobStatus::Active);
+    }
+
+    #[test]
+    fn free_job_payment_retry_is_harmless() {
+        let mut direct = job("direct");
+        direct.pay_fee().unwrap();
+        assert_eq!(direct.status, JobStatus::Active);
+        assert_eq!(direct.timeline_step, 0);
+    }
+
+    #[test]
+    fn rating_rejects_boundaries_and_duplicate_submissions() {
+        let mut completed = job("direct");
+        completed.status = JobStatus::Completed;
+        completed.timeline_step = 3;
+
+        assert!(completed.rate(0, None).is_err());
+        assert!(completed.rate(6, None).is_err());
+        completed.rate(5, Some("Excelente".to_string())).unwrap();
+        assert!(completed.rate(1, None).is_err());
+    }
+
+    #[test]
+    fn timeline_cannot_advance_after_completion() {
+        let mut direct = job("direct");
+        for _ in 0..3 {
+            direct.advance_timeline().unwrap();
+        }
+        assert_eq!(direct.status, JobStatus::Completed);
+        assert!(direct.advance_timeline().is_err());
     }
 }

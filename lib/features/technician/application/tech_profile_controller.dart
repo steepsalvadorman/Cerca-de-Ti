@@ -14,6 +14,7 @@ class TechProfileController extends _$TechProfileController {
 
   Future<void> save({
     required String oficio,
+    required String priceLabel,
     required int coverageKm,
     required List<String> availableDays,
     required List<String> categories,
@@ -22,6 +23,7 @@ class TechProfileController extends _$TechProfileController {
     state = await AsyncValue.guard(() async {
       await ref.read(technicianRepositoryProvider).saveProfile(
             oficio: oficio,
+            priceLabel: priceLabel,
             coverageKm: coverageKm,
             availableDays: availableDays,
             categories: categories,

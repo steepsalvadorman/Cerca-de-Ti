@@ -91,6 +91,7 @@ pub struct ListProvidersResponse {
 #[derive(Deserialize)]
 pub struct SaveProfileRequest {
     pub oficio: String,
+    pub price_label: String,
     pub coverage_km: i32,
     pub available_days: Vec<String>,
     pub categories: Vec<String>,

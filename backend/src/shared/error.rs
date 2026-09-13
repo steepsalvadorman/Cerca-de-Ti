@@ -129,7 +129,7 @@ impl IntoResponse for AppError {
             AppError::Chat(ChatError::Unauthorized) => (StatusCode::FORBIDDEN, self.to_string()),
             // 402 rather than 403: the caller is who they claim and is a
             // participant in the job — the only thing missing is Cerca's
-            // contact fee, and the client can fix that by paying.
+            // bidding fee, and the client can fix that by paying.
             AppError::Chat(ChatError::FeeNotPaid)
             | AppError::Tracking(TrackingError::FeeNotPaid) => {
                 (StatusCode::PAYMENT_REQUIRED, self.to_string())

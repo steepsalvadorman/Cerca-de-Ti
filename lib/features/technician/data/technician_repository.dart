@@ -60,6 +60,7 @@ class TechnicianRepository {
 
   Future<void> saveProfile({
     required String oficio,
+    required String priceLabel,
     required int coverageKm,
     required List<String> availableDays,
     required List<String> categories,
@@ -67,6 +68,7 @@ class TechnicianRepository {
     try {
       await _dio.post('/technician/profile', data: {
         'oficio': oficio,
+        'price_label': priceLabel,
         'coverage_km': coverageKm,
         'available_days': availableDays,
         'categories': categories,

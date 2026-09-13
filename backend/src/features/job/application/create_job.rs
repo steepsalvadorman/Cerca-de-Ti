@@ -28,6 +28,16 @@ impl CreateJobUseCase {
             return Err(JobError::InvalidStatusTransition);
         }
 
+        let valid_assignment = match input.job_kind.as_str() {
+            "direct" => input.technician_profile_id.is_some() && input.tech_team_id.is_none(),
+            "bidding" => input.technician_profile_id.is_none() && input.tech_team_id.is_none(),
+            "project" => input.technician_profile_id.is_none() && input.tech_team_id.is_some(),
+            _ => false,
+        };
+        if !valid_assignment {
+            return Err(JobError::InvalidStatusTransition);
+        }
+
         // fee type matches the job kind
         let fee_type = input.job_kind.clone();
 

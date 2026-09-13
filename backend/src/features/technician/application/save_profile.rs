@@ -7,6 +7,7 @@ use crate::features::technician::domain::{TechnicianError, TechnicianProfile, Te
 pub struct SaveTechnicianProfileInput {
     pub user_id: Uuid,
     pub oficio: String,
+    pub price_label: String,
     pub coverage_km: i32,
     pub available_days: Vec<String>,
     pub categories: Vec<String>,
@@ -37,6 +38,7 @@ impl SaveTechnicianProfileUseCase {
         let profile = match existing {
             Some(mut p) => {
                 p.oficio = input.oficio;
+                p.price_label = input.price_label;
                 p.coverage_km = input.coverage_km;
                 p.available_days = input.available_days;
                 p.categories = input.categories;
@@ -53,7 +55,7 @@ impl SaveTechnicianProfileUseCase {
                     rating: 5.0,
                     reviews: 0,
                     distance: "0.5 km".to_string(),
-                    price_label: "Desde S/ 15".to_string(),
+                    price_label: input.price_label,
                     pin_top: 0.45, // Default mock coordinate pin position
                     pin_left: 0.35,
                     coverage_km: input.coverage_km,

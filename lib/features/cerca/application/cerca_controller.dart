@@ -61,10 +61,10 @@ class CercaController extends _$CercaController {
       state = state.copyWith(feeType: FeeType.bidding, feePaid: false);
 
   void acceptDirect() =>
-      state = state.copyWith(feeType: FeeType.direct, feePaid: false);
+      state = state.copyWith(feeType: FeeType.direct, feePaid: true);
 
   void requestProjectVisit() =>
-      state = state.copyWith(feeType: FeeType.project, feePaid: false);
+      state = state.copyWith(feeType: FeeType.project, feePaid: true);
 
   void payFee() => state = state.copyWith(feePaid: true, jobStep: 0);
 

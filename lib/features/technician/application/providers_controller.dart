@@ -19,6 +19,10 @@ class SelectedCategory extends _$SelectedCategory {
   /// Tapping the active chip clears the filter, which is the only way
   /// back to the full listing.
   void toggle(String categoryId) => state = state == categoryId ? null : categoryId;
+
+  void select(String categoryId) => state = categoryId;
+
+  void clear() => state = null;
 }
 
 /// Home screen's technician/team listing (`GET /providers`).

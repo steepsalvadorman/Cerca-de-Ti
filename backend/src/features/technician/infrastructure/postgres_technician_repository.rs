@@ -166,6 +166,7 @@ impl TechnicianRepository for PostgresTechnicianRepository {
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) \
              ON CONFLICT (user_id) DO UPDATE SET \
                 oficio = EXCLUDED.oficio, \
+                price_label = EXCLUDED.price_label, \
                 coverage_km = EXCLUDED.coverage_km, \
                 available_days = EXCLUDED.available_days, \
                 categories = EXCLUDED.categories, \

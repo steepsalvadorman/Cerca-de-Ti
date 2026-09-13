@@ -139,9 +139,9 @@ class _TechDocsScreenState extends ConsumerState<TechDocsScreen> {
               ),
             ),
             PrimaryActionButton(
-              label: allUploaded ? 'Continuar a mi perfil' : 'Sube todos tus documentos',
+              label: allUploaded ? 'Finalizar y ver mis trabajos' : 'Sube los documentos obligatorios',
               enabled: allUploaded,
-              onTap: () => context.go(RoutePaths.techProfile),
+              onTap: () => context.go(RoutePaths.technicianJobs),
             ),
           ],
         ),

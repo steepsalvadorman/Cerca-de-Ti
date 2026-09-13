@@ -3,8 +3,7 @@
 //! `job_lifecycle.rs` covers the happy path; this file covers everything
 //! the backend must *refuse*. These rules were added after an audit found
 //! the lifecycle was write-forward: it accepted almost any transition in
-//! almost any order, and the contact fee that funds the product was never
-//! checked at all.
+//! almost any order, and required bidding payments were never checked.
 
 use std::sync::Arc;
 
@@ -12,7 +11,6 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use backend::features::chat::application::{GetMessagesUseCase, SendMessageInput, SendMessageUseCase};
-use backend::features::chat::domain::ChatError;
 use backend::features::chat::infrastructure::PostgresChatRepository;
 use backend::features::job::application::{
     ChooseOfferInput, ChooseOfferUseCase, CreateJobInput, CreateJobUseCase, PayFeeInput, PayFeeUseCase,
@@ -23,7 +21,6 @@ use backend::features::job::infrastructure::PostgresJobRepository;
 use backend::features::technician::domain::TechnicianRepository;
 use backend::features::technician::infrastructure::PostgresTechnicianRepository;
 use backend::features::tracking::application::{GetLocationUseCase, UpdateLocationInput, UpdateLocationUseCase};
-use backend::features::tracking::domain::TrackingError;
 use backend::features::tracking::infrastructure::PostgresTrackingRepository;
 
 struct Ctx {
@@ -120,74 +117,35 @@ impl Ctx {
 }
 
 // ---------------------------------------------------------------------
-// The contact fee is the product's only revenue. Chat and live location
-// are exactly what it buys, so both stay shut until it is paid.
+// Direct contact is free at launch. Chat and location must be available
+// immediately without a fake payment step.
 // ---------------------------------------------------------------------
 
 #[sqlx::test(migrations = "./migrations")]
-async fn chat_is_closed_until_the_contact_fee_is_paid(pool: PgPool) {
+async fn direct_chat_is_available_without_a_platform_payment(pool: PgPool) {
     let ctx = Ctx::new(pool);
     let client_id = ctx.user("client").await;
     let (_, profile_id) = ctx.technician().await;
     let job = ctx.job(client_id, "direct", Some(profile_id)).await;
-
-    let blocked = ctx
-        .send_message()
-        .execute(SendMessageInput {
-            job_request_id: job.id,
-            sender_id: client_id,
-            sender_role: "client".to_string(),
-            text: "Hola, ¿cuál es tu número?".to_string(),
-        })
-        .await;
-    assert!(
-        matches!(blocked, Err(ChatError::FeeNotPaid)),
-        "without this the client gets the technician's contact for free"
-    );
-
-    assert!(matches!(
-        ctx.read_messages().execute(job.id, client_id).await,
-        Err(ChatError::FeeNotPaid)
-    ));
-
-    ctx.pay(job.id, client_id).await.unwrap();
 
     ctx.send_message()
         .execute(SendMessageInput {
             job_request_id: job.id,
             sender_id: client_id,
             sender_role: "client".to_string(),
-            text: "Hola".to_string(),
+            text: "Hola, ¿cuál es tu número?".to_string(),
         })
         .await
-        .expect("paying the fee opens the chat");
+        .expect("direct contact must be free");
     assert_eq!(ctx.read_messages().execute(job.id, client_id).await.unwrap().len(), 1);
 }
 
 #[sqlx::test(migrations = "./migrations")]
-async fn live_location_is_closed_until_the_contact_fee_is_paid(pool: PgPool) {
+async fn direct_tracking_is_available_without_a_platform_payment(pool: PgPool) {
     let ctx = Ctx::new(pool);
     let client_id = ctx.user("client").await;
     let (tech_user_id, profile_id) = ctx.technician().await;
     let job = ctx.job(client_id, "direct", Some(profile_id)).await;
-
-    let push = ctx
-        .push_location()
-        .execute(UpdateLocationInput {
-            job_request_id: job.id,
-            technician_user_id: tech_user_id,
-            latitude: -12.05,
-            longitude: -77.04,
-        })
-        .await;
-    assert!(matches!(push, Err(TrackingError::FeeNotPaid)));
-
-    assert!(matches!(
-        ctx.read_location().execute(job.id, client_id).await,
-        Err(TrackingError::FeeNotPaid)
-    ));
-
-    ctx.pay(job.id, client_id).await.unwrap();
 
     ctx.push_location()
         .execute(UpdateLocationInput {
@@ -197,7 +155,10 @@ async fn live_location_is_closed_until_the_contact_fee_is_paid(pool: PgPool) {
             longitude: -77.04,
         })
         .await
-        .expect("paying the fee turns tracking on");
+        .expect("tracking for a direct job must be free");
+    let location = ctx.read_location().execute(job.id, client_id).await.unwrap();
+    assert_eq!(location.latitude, -12.05);
+    assert_eq!(location.longitude, -77.04);
 }
 
 // ---------------------------------------------------------------------

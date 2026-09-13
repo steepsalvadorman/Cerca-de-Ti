@@ -8,6 +8,7 @@ import '../../../auth/application/auth_controller.dart';
 import '../../../auth/domain/auth_user.dart';
 import '../../../cerca/presentation/widgets/cerca_logo_mark.dart';
 import '../../../cerca/presentation/widgets/cerca_text_styles.dart';
+import '../../../technician/application/tech_profile_controller.dart';
 
 /// Lands here right after login/register. The role is no longer a manual
 /// either/or choice (the backend fixes it at registration) — this screen
@@ -20,6 +21,11 @@ class WelcomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(authControllerProvider).value;
     final user = session?.user;
+    final techProfile = user?.isTechnician == true ? ref.watch(techProfileControllerProvider) : null;
+    final technicianProfile = techProfile?.value;
+    final hasCompleteTechProfile = technicianProfile != null &&
+        technicianProfile.oficio.trim().isNotEmpty &&
+        technicianProfile.categories.isNotEmpty;
 
     return Scaffold(
       body: Container(
@@ -70,9 +76,17 @@ class WelcomeScreen extends ConsumerWidget {
                 else if (user.isTechnician)
                   _RoleCard(
                     mono: 'T',
-                    title: 'Continuar como Técnico',
-                    subtitle: 'Revisa tus trabajos y solicitudes abiertas a licitación',
-                    onTap: () => context.go(RoutePaths.technicianJobs),
+                    title: techProfile?.isLoading == true
+                        ? 'Preparando tu perfil…'
+                        : !hasCompleteTechProfile
+                            ? 'Crear mi perfil profesional'
+                            : 'Continuar como Técnico',
+                    subtitle: !hasCompleteTechProfile
+                        ? 'Completa tus servicios, cobertura, disponibilidad y verificación'
+                        : 'Revisa tus trabajos y solicitudes abiertas a licitación',
+                    onTap: () => context.go(
+                      !hasCompleteTechProfile ? RoutePaths.techProfile : RoutePaths.technicianJobs,
+                    ),
                   )
                 else
                   _RoleCard(
