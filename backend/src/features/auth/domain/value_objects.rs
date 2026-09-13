@@ -59,6 +59,21 @@ impl Role {
     }
 }
 
+/// The external identity providers Cerca accepts. Only Google for now —
+/// the `auth_identities.provider` CHECK constraint lists the same set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IdentityProvider {
+    Google,
+}
+
+impl IdentityProvider {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            IdentityProvider::Google => "google",
+        }
+    }
+}
+
 /// An already-hashed password (argon2 PHC string). Opaque on purpose —
 /// nothing outside the hashing adapter should ever see or construct a
 /// plaintext-adjacent value here.

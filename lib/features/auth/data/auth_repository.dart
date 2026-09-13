@@ -5,7 +5,7 @@ import '../domain/auth_session.dart';
 import '../domain/auth_user.dart';
 
 /// Talks to the `auth` feature of the backend (`/auth/register`,
-/// `/auth/login`, `/me`).
+/// `/auth/login`, `/auth/google`, `/me`).
 class AuthRepository {
   AuthRepository(this._dio);
 
@@ -38,6 +38,28 @@ class AuthRepository {
     try {
       final response = await _dio.post('/auth/login', data: {'email': email, 'password': password});
       return AuthSession.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw apiExceptionOf(e);
+    }
+  }
+
+  /// Exchanges a Google ID token for one of our sessions. [role] is
+  /// only read when the account does not exist yet; without it the
+  /// backend answers 422 (`ApiException.isRoleRequired`) so the app can
+  /// ask which side of Cerca this person is on and call again.
+  Future<AuthSession> signInWithGoogle({required String idToken, String? role}) async {
+    try {
+      final response = await _dio.post('/auth/google', data: {
+        'id_token': idToken,
+        'role': ?role,
+      });
+      final session = AuthSession.fromJson(response.data as Map<String, dynamic>);
+      // 201 means this call created the account, so a technician needs
+      // the same empty profile row `register` bootstraps — see there.
+      if (response.statusCode == 201 && session.user.role == 'technician') {
+        await _bootstrapTechnicianProfile(session.token);
+      }
+      return session;
     } on DioException catch (e) {
       throw apiExceptionOf(e);
     }

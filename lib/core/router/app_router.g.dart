@@ -8,20 +8,45 @@ part of 'app_router.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
+/// Built **once** per app run, on purpose.
+///
+/// Watching `authControllerProvider` here instead would rebuild the
+/// provider — and with it the whole `GoRouter` — on every session
+/// change, and a fresh router starts over at `initialLocation`. That is
+/// how a failed login used to dump the person on the splash screen
+/// rather than leaving them on the form with the error. `refreshListenable`
+/// gets the redirect re-evaluated without throwing the router away.
 
 @ProviderFor(appRouter)
 final appRouterProvider = AppRouterProvider._();
 
+/// Built **once** per app run, on purpose.
+///
+/// Watching `authControllerProvider` here instead would rebuild the
+/// provider — and with it the whole `GoRouter` — on every session
+/// change, and a fresh router starts over at `initialLocation`. That is
+/// how a failed login used to dump the person on the splash screen
+/// rather than leaving them on the form with the error. `refreshListenable`
+/// gets the redirect re-evaluated without throwing the router away.
+
 final class AppRouterProvider
     extends $FunctionalProvider<GoRouter, GoRouter, GoRouter>
     with $Provider<GoRouter> {
+  /// Built **once** per app run, on purpose.
+  ///
+  /// Watching `authControllerProvider` here instead would rebuild the
+  /// provider — and with it the whole `GoRouter` — on every session
+  /// change, and a fresh router starts over at `initialLocation`. That is
+  /// how a failed login used to dump the person on the splash screen
+  /// rather than leaving them on the form with the error. `refreshListenable`
+  /// gets the redirect re-evaluated without throwing the router away.
   AppRouterProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
         name: r'appRouterProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -48,4 +73,4 @@ final class AppRouterProvider
   }
 }
 
-String _$appRouterHash() => r'8cead29072ad091e90acc64fbad123a111fddd33';
+String _$appRouterHash() => r'e445327cb51a0ea2a9c6d5605df7644e03933f3c';

@@ -35,9 +35,17 @@ impl LoginUserUseCase {
             .await?
             .ok_or(AuthError::InvalidCredentials)?;
 
+        // Accounts created through Google have no hash to compare
+        // against. Saying so beats a generic "invalid credentials" that
+        // would send someone hunting for a password they never set.
+        let hash = user
+            .password_hash
+            .as_ref()
+            .ok_or(AuthError::PasswordLoginUnavailable)?;
+
         let matches = self
             .hasher
-            .verify(&input.password, user.password_hash.as_str())
+            .verify(&input.password, hash.as_str())
             .map_err(|_| AuthError::InvalidCredentials)?;
 
         if !matches {

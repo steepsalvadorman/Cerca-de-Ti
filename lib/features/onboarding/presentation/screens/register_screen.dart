@@ -6,11 +6,10 @@ import '../../../../core/network/api_exception.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/application/auth_controller.dart';
-import '../../../cerca/application/cerca_controller.dart';
 import '../../../cerca/presentation/widgets/back_circle_button.dart';
 import '../../../cerca/presentation/widgets/cerca_logo_mark.dart';
 import '../../../cerca/presentation/widgets/cerca_text_styles.dart';
-import '../widgets/social_provider_button.dart';
+import '../widgets/google_sign_in_button.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -31,12 +30,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  void _comingSoon(String provider) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Ingresar con $provider estará disponible pronto.')),
-    );
   }
 
   Future<void> _doRegister(bool isLoading) async {
@@ -72,8 +65,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cercaState = ref.watch(cercaControllerProvider);
-    final cercaController = ref.watch(cercaControllerProvider.notifier);
     final isLoading = ref.watch(authControllerProvider).isLoading;
 
     return Scaffold(
@@ -161,92 +152,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      SocialProviderButton(
-                        label: 'Continuar con Google',
-                        onTap: () => _comingSoon('Google'),
-                        iconBackground: Colors.white,
-                        iconBorder: AppColors.cercaBorder,
-                        icon: const _GoogleIcon(),
-                      ),
-                      const SizedBox(height: 12),
-                      SocialProviderButton(
-                        label: 'Continuar con Facebook',
-                        onTap: () => _comingSoon('Facebook'),
-                        iconBackground: const Color(0xFF1877F2),
-                        icon: const Icon(Icons.facebook, color: Colors.white, size: 22),
-                      ),
-                      const SizedBox(height: 12),
-                      SocialProviderButton(
-                        label: 'Continuar con TikTok',
-                        onTap: () => _comingSoon('TikTok'),
-                        iconBackground: const Color(0xFF111111),
-                        icon: const Icon(Icons.music_note, color: Colors.white, size: 20),
-                      ),
-                      const SizedBox(height: 12),
-                      SocialProviderButton(
-                        label: 'Continuar con WhatsApp',
-                        onTap: cercaController.toggleWhatsapp,
-                        iconBackground: const Color(0xFF25D366),
-                        icon: const Icon(Icons.chat, color: Colors.white, size: 20),
-                        trailing: Text(
-                          cercaState.whatsappOpen ? '︿' : '›',
-                          style: CercaText.sora(fontSize: 15, color: AppColors.cercaTextMuted),
-                        ),
-                      ),
-                      if (cercaState.whatsappOpen)
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            border: Border.all(color: AppColors.cercaBorder),
-                            borderRadius: const BorderRadius.only(
-                              bottomLeft: Radius.circular(16),
-                              bottomRight: Radius.circular(16),
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              TextField(
-                                onChanged: cercaController.setWhatsappPhone,
-                                keyboardType: TextInputType.phone,
-                                style: CercaText.sora(fontSize: 15),
-                                decoration: InputDecoration(
-                                  hintText: 'Tu número de WhatsApp',
-                                  hintStyle: CercaText.sora(fontSize: 15, color: AppColors.cercaTextMuted),
-                                  filled: true,
-                                  fillColor: AppColors.cercaBackground,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 13, horizontal: 14),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(color: AppColors.cercaBorder),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(color: AppColors.cercaBorder),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              InkWell(
-                                onTap: () => _comingSoon('WhatsApp'),
-                                borderRadius: BorderRadius.circular(12),
-                                child: Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(14),
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF25D366),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    'Enviar código por WhatsApp',
-                                    style: CercaText.sora(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                      GoogleSignInButton(role: _role),
                       const SizedBox(height: 24),
                       InkWell(
                         onTap: () => context.go(RoutePaths.login),
@@ -355,18 +261,6 @@ class _RoleOption extends StatelessWidget {
           style: CercaText.sora(fontSize: 13.5, fontWeight: FontWeight.w700, color: selected ? Colors.white : AppColors.cercaTextSecondary),
         ),
       ),
-    );
-  }
-}
-
-class _GoogleIcon extends StatelessWidget {
-  const _GoogleIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Text(
-      'G',
-      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF4285F4)),
     );
   }
 }

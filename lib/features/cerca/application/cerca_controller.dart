@@ -34,17 +34,6 @@ class CercaController extends _$CercaController {
 
   void finishLoginAnimation() => state = state.copyWith(loginAnimating: false);
 
-  void toggleWhatsapp() =>
-      state = state.copyWith(whatsappOpen: !state.whatsappOpen);
-
-  void setWhatsappPhone(String phone) =>
-      state = state.copyWith(whatsappPhone: phone);
-
-  void startSocial(String provider) =>
-      state = state.copyWith(socialAnimating: true, socialProvider: provider);
-
-  void finishSocial() => state = state.copyWith(socialAnimating: false);
-
   void selectTech(int id) =>
       state = state.copyWith(selectedTechId: id, viewingTeam: false);
 
@@ -168,6 +157,4 @@ class CercaController extends _$CercaController {
     }
     return 'Ingresar';
   }
-
-  String get socialProviderLabel => 'Conectando con ${state.socialProvider}…';
 }

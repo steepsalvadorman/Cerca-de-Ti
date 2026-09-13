@@ -57,17 +57,35 @@ const _technicianOnlyRoutes = {
   RoutePaths.technicianJobDetail,
 };
 
-@riverpod
+/// Bridges a Riverpod provider to the `Listenable` GoRouter wants, so the
+/// guard below re-runs on every session change.
+class _AuthRefresh extends ChangeNotifier {
+  _AuthRefresh(Ref ref) {
+    ref.listen(authControllerProvider, (_, _) => notifyListeners());
+  }
+}
+
+/// Built **once** per app run, on purpose.
+///
+/// Watching `authControllerProvider` here instead would rebuild the
+/// provider — and with it the whole `GoRouter` — on every session
+/// change, and a fresh router starts over at `initialLocation`. That is
+/// how a failed login used to dump the person on the splash screen
+/// rather than leaving them on the form with the error. `refreshListenable`
+/// gets the redirect re-evaluated without throwing the router away.
+@Riverpod(keepAlive: true)
 GoRouter appRouter(Ref ref) {
-  final authState = ref.watch(authControllerProvider);
+  final refresh = _AuthRefresh(ref);
+  ref.onDispose(refresh.dispose);
 
   return GoRouter(
     initialLocation: RoutePaths.splash,
+    refreshListenable: refresh,
     redirect: (context, state) {
       final location = state.matchedLocation;
       if (_publicRoutes.contains(location)) return null;
 
-      return authState.when(
+      return ref.read(authControllerProvider).when(
         data: (session) {
           if (session == null) return RoutePaths.login;
           if (session.user.isTechnician && _clientOnlyRoutes.contains(location)) {

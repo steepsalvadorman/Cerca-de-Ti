@@ -15,7 +15,9 @@ use uuid::Uuid;
 
 use backend::features::auth::application::TokenService;
 use backend::features::auth::domain::Role;
-use backend::features::auth::infrastructure::{Argon2PasswordHasher, JwtTokenService, PostgresUserRepository};
+use backend::features::auth::infrastructure::{
+    Argon2PasswordHasher, JwtTokenService, PostgresUserRepository, UnconfiguredIdentityVerifier,
+};
 use backend::features::chat::infrastructure::PostgresChatRepository;
 use backend::features::client::infrastructure::PostgresClientRepository;
 use backend::features::job::infrastructure::PostgresJobRepository;
@@ -31,6 +33,10 @@ fn test_state(pool: PgPool) -> AppState {
         user_repository: Arc::new(PostgresUserRepository::new(pool.clone())),
         password_hasher: Arc::new(Argon2PasswordHasher),
         token_service: Arc::new(JwtTokenService::new(TEST_JWT_SECRET)),
+        // Same reasoning as the storage stub below: these tests never
+        // sign in with Google, and a real verifier would want to reach
+        // Google's servers.
+        identity_verifier: Arc::new(UnconfiguredIdentityVerifier),
         technician_repository: Arc::new(PostgresTechnicianRepository::new(pool.clone())),
         client_repository: Arc::new(PostgresClientRepository::new(pool.clone())),
         job_repository: Arc::new(PostgresJobRepository::new(pool.clone())),

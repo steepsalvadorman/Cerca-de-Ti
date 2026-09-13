@@ -1,7 +1,11 @@
 use std::sync::Arc;
 
 use backend::config::AppConfig;
-use backend::features::auth::infrastructure::{Argon2PasswordHasher, JwtTokenService, PostgresUserRepository};
+use backend::features::auth::application::IdentityVerifier;
+use backend::features::auth::infrastructure::{
+    Argon2PasswordHasher, GoogleIdentityVerifier, JwtTokenService, PostgresUserRepository,
+    UnconfiguredIdentityVerifier,
+};
 use backend::features::technician::application::ObjectStorage;
 use backend::features::technician::infrastructure::{
     PostgresTechnicianRepository, S3ObjectStorage, UnconfiguredObjectStorage,
@@ -44,10 +48,18 @@ async fn main() {
         }
     };
 
+    let identity_verifier: Arc<dyn IdentityVerifier> = if config.google_client_ids.is_empty() {
+        tracing::warn!("GOOGLE_CLIENT_IDS is not set — sign-in with Google will answer 503");
+        Arc::new(UnconfiguredIdentityVerifier)
+    } else {
+        Arc::new(GoogleIdentityVerifier::new(config.google_client_ids.clone()))
+    };
+
     let state = AppState {
         user_repository: Arc::new(PostgresUserRepository::new(pool.clone())),
         password_hasher: Arc::new(Argon2PasswordHasher),
         token_service: Arc::new(JwtTokenService::new(&config.jwt_secret)),
+        identity_verifier,
         technician_repository: Arc::new(PostgresTechnicianRepository::new(pool.clone())),
         client_repository: Arc::new(PostgresClientRepository::new(pool.clone())),
         job_repository: Arc::new(PostgresJobRepository::new(pool.clone())),

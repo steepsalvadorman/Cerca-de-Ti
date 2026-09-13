@@ -36,20 +36,15 @@ class TechDocsController extends _$TechDocsController {
   /// the technician backed out of the file picker, so the caller can
   /// tell "cancelled" apart from "uploaded".
   Future<bool> upload(String documentKey) async {
-    final selection = await FilePicker.pickFiles(
+    final file = await FilePicker.pickFile(
       type: FileType.custom,
       allowedExtensions: _allowedExtensions,
-      // The bytes are needed anyway to PUT them, and this is the only
-      // way to get them on web.
-      withData: true,
     );
-
-    final file = selection?.files.singleOrNull;
     if (file == null) return false;
 
-    final bytes = file.bytes;
+    final bytes = await file.readAsBytes();
     final contentType = _contentTypes[file.extension?.toLowerCase()];
-    if (bytes == null || contentType == null) {
+    if (contentType == null) {
       throw const ApiException(message: 'Formato no admitido. Sube una foto (JPG/PNG) o un PDF.');
     }
     if (bytes.length > _maxFileSizeBytes) {

@@ -3,12 +3,16 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/network_providers.dart';
 import '../data/auth_repository.dart';
+import '../data/google_sign_in_service.dart';
 import '../domain/auth_session.dart';
 
 part 'auth_controller.g.dart';
 
 @Riverpod(keepAlive: true)
 AuthRepository authRepository(Ref ref) => AuthRepository(ref.watch(apiClientProvider));
+
+@Riverpod(keepAlive: true)
+GoogleSignInService googleSignInService(Ref ref) => const GoogleSignInService();
 
 /// Session state for the whole app: `null` means signed out. Restores
 /// the session from the stored JWT on first read (app startup), and
@@ -83,7 +87,36 @@ class AuthController extends _$AuthController {
     });
   }
 
+  /// Signs in through Google. [role] is only consulted when the account
+  /// is new; an existing one keeps the role it has. Called without a
+  /// role (from the login screen) a first-time account comes back as
+  /// `ApiException.isRoleRequired`, which the caller turns into a
+  /// client/technician prompt and one more attempt.
+  Future<void> signInWithGoogle({String? role}) async {
+    final previous = state.value;
+    state = const AsyncLoading();
+
+    try {
+      final idToken = await ref.read(googleSignInServiceProvider).idToken();
+      final session = await ref
+          .read(authRepositoryProvider)
+          .signInWithGoogle(idToken: idToken, role: role);
+      await ref.read(tokenStorageProvider).save(session.token);
+      state = AsyncData(session);
+    } on GoogleSignInCancelled {
+      // Backing out of Google's account sheet is a decision, not a
+      // failure: no error banner, just the screen as it was.
+      state = AsyncData(previous);
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+    }
+  }
+
   Future<void> logout() async {
+    // Google remembers the chosen account across sign-ins; without this
+    // the next "Continuar con Google" would silently re-enter the very
+    // account the person just left.
+    await ref.read(googleSignInServiceProvider).signOut();
     try {
       await ref.read(tokenStorageProvider).clear();
     } catch (_) {

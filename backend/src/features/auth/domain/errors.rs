@@ -14,6 +14,16 @@ pub enum AuthError {
     InvalidRole,
     #[error("password must be at least 8 characters")]
     WeakPassword,
+    #[error("this account signs in with Google")]
+    PasswordLoginUnavailable,
+    #[error("could not verify that Google account")]
+    InvalidProviderToken,
+    #[error("that Google account has no verified email address")]
+    ProviderEmailUnverified,
+    #[error("choose whether you are a client or a technician to finish signing up")]
+    RoleRequired,
+    #[error("sign-in with Google is not available right now")]
+    ProviderUnavailable,
     #[error("could not process the password")]
     Hashing,
     #[error("could not issue a session token")]

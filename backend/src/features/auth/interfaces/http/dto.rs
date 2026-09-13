@@ -19,6 +19,17 @@ pub struct LoginRequest {
     pub password: String,
 }
 
+#[derive(Deserialize)]
+pub struct GoogleSignInRequest {
+    /// The ID token from the Google Sign-In SDK on the device.
+    pub id_token: String,
+    /// Sent only when the app already knows which side of the app the
+    /// person belongs to. A first-time account without it comes back as
+    /// 422 so the app can ask and retry.
+    #[serde(default)]
+    pub role: Option<String>,
+}
+
 #[derive(Serialize)]
 pub struct UserResponse {
     pub id: Uuid,

@@ -50,6 +50,54 @@ final class AuthRepositoryProvider
 
 String _$authRepositoryHash() => r'ec15c83ecdf13629db12b23f135877f8305fd9a9';
 
+@ProviderFor(googleSignInService)
+final googleSignInServiceProvider = GoogleSignInServiceProvider._();
+
+final class GoogleSignInServiceProvider
+    extends
+        $FunctionalProvider<
+          GoogleSignInService,
+          GoogleSignInService,
+          GoogleSignInService
+        >
+    with $Provider<GoogleSignInService> {
+  GoogleSignInServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'googleSignInServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$googleSignInServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<GoogleSignInService> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  GoogleSignInService create(Ref ref) {
+    return googleSignInService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(GoogleSignInService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<GoogleSignInService>(value),
+    );
+  }
+}
+
+String _$googleSignInServiceHash() =>
+    r'a3e2bc082d67eca42a72e8c77509e921105048b6';
+
 /// Session state for the whole app: `null` means signed out. Restores
 /// the session from the stored JWT on first read (app startup), and
 /// drives every login/register/logout action.
@@ -84,7 +132,7 @@ final class AuthControllerProvider
   AuthController create() => AuthController();
 }
 
-String _$authControllerHash() => r'5be7ec1a4fb03f7c7e824cc1647bf1c4564d11e2';
+String _$authControllerHash() => r'c3ea65ad3821fc5a4174bb078428d70d77d7898d';
 
 /// Session state for the whole app: `null` means signed out. Restores
 /// the session from the stored JWT on first read (app startup), and

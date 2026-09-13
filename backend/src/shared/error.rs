@@ -62,7 +62,23 @@ impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, public_message) = match &self {
             AppError::Auth(AuthError::EmailAlreadyExists) => (StatusCode::CONFLICT, self.to_string()),
-            AppError::Auth(AuthError::InvalidCredentials) => (StatusCode::UNAUTHORIZED, self.to_string()),
+            AppError::Auth(AuthError::InvalidCredentials)
+            | AppError::Auth(AuthError::InvalidProviderToken) => (StatusCode::UNAUTHORIZED, self.to_string()),
+            // The caller is who they say they are; what is missing is a
+            // usable email on the provider side, which no retry fixes.
+            AppError::Auth(AuthError::ProviderEmailUnverified) => (StatusCode::FORBIDDEN, self.to_string()),
+            // Password login against an account that only has Google.
+            AppError::Auth(AuthError::PasswordLoginUnavailable) => (StatusCode::CONFLICT, self.to_string()),
+            // The request is well-formed but cannot complete until the
+            // app asks whether this is a client or a technician and
+            // sends the answer back. 422 is what the app keys on.
+            AppError::Auth(AuthError::RoleRequired) => (StatusCode::UNPROCESSABLE_ENTITY, self.to_string()),
+            // Same shape as the storage case below: a deploy step is
+            // missing, not a bad request.
+            AppError::Auth(AuthError::ProviderUnavailable) => {
+                tracing::error!("sign-in with Google is unavailable — is GOOGLE_CLIENT_IDS set?");
+                (StatusCode::SERVICE_UNAVAILABLE, self.to_string())
+            }
             AppError::Auth(AuthError::InvalidEmail)
             | AppError::Auth(AuthError::InvalidRole)
             | AppError::Auth(AuthError::WeakPassword) => (StatusCode::BAD_REQUEST, self.to_string()),

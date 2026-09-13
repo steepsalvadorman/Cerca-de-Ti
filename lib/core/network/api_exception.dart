@@ -10,6 +10,11 @@ class ApiException implements Exception {
   bool get isUnauthorized => statusCode == 401;
   bool get isNotFound => statusCode == 404;
 
+  /// `/auth/google` answering "I need to know whether this person is a
+  /// client or a technician before I can create the account". The app
+  /// asks and retries rather than showing this as a failure.
+  bool get isRoleRequired => statusCode == 422;
+
   @override
   String toString() => message;
 }

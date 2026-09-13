@@ -17,10 +17,6 @@ abstract class CercaState with _$CercaState {
     @Default('Sofía Herrera') String loginName,
     @Default(true) bool loginRemembered,
     @Default(false) bool loginAnimating,
-    @Default(false) bool whatsappOpen,
-    @Default('') String whatsappPhone,
-    @Default(false) bool socialAnimating,
-    @Default('') String socialProvider,
     @Default(JobKind.puntual) JobKind jobKind,
     @Default({
       'cedula': DocStatus.uploaded,

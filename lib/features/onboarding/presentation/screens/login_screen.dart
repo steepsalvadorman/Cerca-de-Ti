@@ -10,6 +10,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../auth/application/auth_controller.dart';
 import '../../../cerca/presentation/widgets/cerca_logo_mark.dart';
 import '../../../cerca/presentation/widgets/cerca_text_styles.dart';
+import '../widgets/google_sign_in_button.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -254,6 +255,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                           ),
                                         ),
                                       ),
+                                      // Wide enough to clear the
+                                      // 28px glow under "Ingresar",
+                                      // which otherwise washes out the
+                                      // divider rules.
+                                      const SizedBox(height: 30),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Divider(
+                                              color: AppColors.cercaBorder,
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 10,
+                                                ),
+                                            child: Text(
+                                              'o continúa con',
+                                              style: CercaText.sora(
+                                                fontSize: 12.5,
+                                                color: AppColors.cercaTextMuted,
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: Divider(
+                                              color: AppColors.cercaBorder,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 14),
+                                      // No role here: someone signing in
+                                      // already has one, and a first-time
+                                      // account gets asked by the button.
+                                      const GoogleSignInButton(),
                                     ],
                                   ),
                                 ),

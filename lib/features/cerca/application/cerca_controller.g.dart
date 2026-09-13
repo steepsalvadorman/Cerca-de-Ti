@@ -53,7 +53,7 @@ final class CercaControllerProvider
   }
 }
 
-String _$cercaControllerHash() => r'd4d22f537cf8851508414e21cfb4f35cc3e28dfc';
+String _$cercaControllerHash() => r'30310f50de54f192d030dabc5b287900dd72a642';
 
 /// Single shared session controller for the whole Cerca flow, mirroring the
 /// prototype's single `Component.state` object: every screen reads and

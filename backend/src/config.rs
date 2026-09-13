@@ -15,6 +15,12 @@ pub struct AppConfig {
     /// answer 503 instead of the server refusing to start — every other
     /// feature works without it.
     pub storage: Option<S3Config>,
+    /// OAuth client ids accepted in the `aud` claim of a Google ID
+    /// token — the Android, iOS and web clients of this project. Empty
+    /// until they are created in Google Cloud Console, and then
+    /// `/auth/google` answers 503 rather than accepting tokens minted
+    /// for some other app.
+    pub google_client_ids: Vec<String>,
 }
 
 impl AppConfig {
@@ -35,6 +41,12 @@ impl AppConfig {
                 .filter(|s| !s.is_empty())
                 .collect(),
             storage: storage_from_env(),
+            google_client_ids: env::var("GOOGLE_CLIENT_IDS")
+                .unwrap_or_default()
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect(),
         }
     }
 }

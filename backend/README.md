@@ -33,6 +33,7 @@ they never touch your development data.
 | `RUST_LOG` | no | Defaults to `backend=debug,tower_http=debug` |
 | `CORS_ALLOWED_ORIGINS` | no | Comma-separated. Empty = no browser may call the API cross-origin, which is correct for a mobile-only client |
 | `S3_*` | no | Document uploads answer 503 until these are set; everything else works |
+| `GOOGLE_CLIENT_IDS` | no | Comma-separated OAuth client ids allowed in a Google ID token's `aud`. `/auth/google` answers 503 until set; everything else works |
 
 ## Deploying
 
