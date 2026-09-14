@@ -41,18 +41,26 @@ Hosting is declared in `../render.yaml` (Render Blueprint). Render
 watches the default branch and redeploys on pushes that touch
 `backend/**`. There is no deploy CI job — Render does it natively.
 
-### 1. Database — Neon
+### 1. Database — Supabase Postgres
 
-Render's own free Postgres expires after 30 days, so the database lives
-on [Neon](https://neon.tech) instead (free tier: 0.5 GB, no expiry, no
-card).
+The API uses standard Postgres through `sqlx`, so Supabase is used as the
+managed database without adding its SDK to Flutter or exposing database
+credentials in the mobile app.
 
-1. Create a project, pick the region closest to Peru.
-2. Copy the **pooled** connection string.
-3. Paste it as `DATABASE_URL` in Render.
+1. Create a Supabase project and keep its database password securely.
+2. In the project dashboard, select **Connect → Session pooler**.
+3. Copy the port `5432` connection string and replace `[YOUR-PASSWORD]`.
+4. Add `?sslmode=require` if the copied URL does not already specify SSL.
+5. Paste the complete URL as `DATABASE_URL` in Render and redeploy.
 
-Neon suspends compute when idle and wakes on the next query, which adds
-a moment to the first request after a quiet period.
+Render is a persistent backend and can be IPv4-only, which is why Session
+pooler is preferred over the direct IPv6 endpoint. Do not use Transaction
+pooler on port `6543`: it does not support prepared statements. On first
+startup the API applies every file in `backend/migrations/` automatically.
+
+Changing `DATABASE_URL` starts with an empty database unless the existing
+Postgres data is exported and restored first. The schema migrates
+automatically; existing users and jobs do not.
 
 ### 2. Document storage — Supabase Storage
 

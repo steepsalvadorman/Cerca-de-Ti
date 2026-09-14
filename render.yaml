@@ -4,9 +4,8 @@
 # branch, so no CI job is needed — `buildFilter` below keeps a
 # Flutter-only commit from triggering a (slow) Rust rebuild.
 #
-# Postgres is NOT declared here: Render's own free Postgres expires
-# after 30 days, so the database lives on Neon instead and arrives
-# through DATABASE_URL.
+# Postgres is NOT declared here: the database lives on Supabase and its
+# Session pooler connection string arrives through DATABASE_URL.
 services:
   - type: web
     name: cerca-backend

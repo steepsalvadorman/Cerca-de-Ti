@@ -1,4 +1,4 @@
-name: Distribute Android build
+name: Build Android APK
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
   tests:
     uses: ./.github/workflows/tests.yml
 
-  build-and-distribute:
+  build-and-package:
     needs: tests
     runs-on: ubuntu-latest
     steps:
@@ -33,9 +33,9 @@ jobs:
       - name: Generate code (freezed / riverpod)
         run: dart run build_runner build
 
-      # Without a keystore the APK is debug-signed and cannot be
-      # published; Firebase App Distribution still accepts it for
-      # testers. Set these secrets to produce a publishable build.
+      # Without a keystore the APK is debug-signed and can only be used
+      # for internal testing. Set these secrets to produce a build that
+      # can later be published in Google Play.
       - name: Decode release keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -54,7 +54,9 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          # A backend URL is public configuration, not a credential. Prefer a
+          # repository variable; keep the secret fallback for existing setups.
+          API_BASE_URL: ${{ vars.API_BASE_URL || secrets.API_BASE_URL }}
         # The API base URL is compile-time. Without it the APK keeps the
         # emulator default (http://10.0.2.2:8080) and cannot reach any
         # backend from a real device — testers got an app that only ever
@@ -68,15 +70,14 @@ jobs:
           if [ -n "$API_BASE_URL" ]; then
             ARGS="$ARGS --dart-define=API_BASE_URL=$API_BASE_URL"
           else
-            echo "::warning::API_BASE_URL secret is not set — this APK will point at the emulator default and cannot reach a real backend."
+            echo "::warning::API_BASE_URL variable is not set — this APK will point at the emulator default and cannot reach a real backend."
           fi
           flutter build apk $ARGS
 
-      - name: Upload to Firebase App Distribution
-        uses: wzieba/Firebase-Distribution-Github-Action@v1
+      - name: Publish APK as GitHub artifact
+        uses: actions/upload-artifact@v4
         with:
-          appId: ${{ secrets.FIREBASE_APP_ID }}
-          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          groups: testers
-          file: build/app/outputs/flutter-apk/app-release.apk
-          releaseNotes: "Build automático desde ${{ github.sha }}"
+          name: cerca-android-${{ github.run_number }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
