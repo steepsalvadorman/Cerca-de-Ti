@@ -80,15 +80,22 @@ class _AddressPickerSheetState extends State<_AddressPickerSheet> {
           'Sin permiso GPS: mueve el mapa hasta tu dirección.',
         );
       }
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
-      final point = LatLng(position.latitude, position.longitude);
-      _selectedPoint = point;
-      _mapController.move(point, 17);
-      await _readAddress(point);
+      // The cached fix centers the map the moment permission is granted.
+      // The GPS can take seconds to answer — worse indoors — and until it
+      // does the map would still be sitting on the Lima default, so the
+      // person would see a city that is not theirs. Geolocator itself
+      // recommends this pair: cached position first, fresh fix after.
+      final cached = await Geolocator.getLastKnownPosition();
+      if (cached != null) _centerOn(cached);
+
+      final position = await _currentPosition();
+      if (position == null) {
+        throw const _LocationIssue(
+          'No pudimos fijar tu ubicación. Mueve el mapa hasta tu dirección.',
+        );
+      }
+      _centerOn(position);
+      await _readAddress(_selectedPoint);
     } on _LocationIssue catch (error) {
       if (mounted) setState(() => _locationMessage = error.message);
     } catch (_) {
@@ -101,6 +108,31 @@ class _AddressPickerSheetState extends State<_AddressPickerSheet> {
     } finally {
       if (mounted) setState(() => _locating = false);
     }
+  }
+
+  /// Current fix, with the cached one as fallback. `getCurrentPosition`
+  /// has no ceiling of its own, so a device that never gets a satellite
+  /// lock would leave the sheet spinning with no address at all.
+  Future<Position?> _currentPosition() async {
+    try {
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 15),
+        ),
+      );
+    } on TimeoutException {
+      return Geolocator.getLastKnownPosition();
+    }
+  }
+
+  /// Keeps the pin — which is simply the map center — on [position], so
+  /// the address that gets read is always the one under the pin.
+  void _centerOn(Position position) {
+    if (!mounted) return;
+    final point = LatLng(position.latitude, position.longitude);
+    _selectedPoint = point;
+    _mapController.move(point, 17);
   }
 
   void _onMapMoved(MapCamera camera, bool hasGesture) {
