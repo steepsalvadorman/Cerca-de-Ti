@@ -263,36 +263,20 @@ class TechnicianProfileScreen extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 22),
               decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.cercaBorder))),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => context.go(RoutePaths.chat),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.cercaPrimary),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: Text('Chatear', style: CercaText.sora(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.cercaPrimary)),
-                    ),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => isTeam ? context.go(RoutePaths.jobProjectQuote) : context.go(RoutePaths.jobDirect),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.cercaPrimary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton(
-                      onPressed: () => isTeam ? context.go(RoutePaths.jobProjectQuote) : context.go(RoutePaths.jobDirect),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.cercaPrimary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: Text(
-                        isTeam ? 'Cotizar proyecto' : 'Solicitar cotización',
-                        style: CercaText.sora(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
-                      ),
-                    ),
+                  child: Text(
+                    isTeam ? 'Cotizar proyecto' : 'Solicitar cotización',
+                    style: CercaText.sora(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
                   ),
-                ],
+                ),
               ),
             ),
           ),

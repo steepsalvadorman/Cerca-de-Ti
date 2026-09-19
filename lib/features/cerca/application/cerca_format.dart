@@ -24,3 +24,14 @@ String formatShortDate(String isoTimestamp) {
   final date = DateTime.parse(isoTimestamp).toLocal();
   return '${date.day} ${_shortMonths[date.month - 1]}';
 }
+
+/// Formats an ISO-8601 timestamp for chat bubbles (e.g. "14:30" today,
+/// "2 jul 14:30" on another day).
+String formatChatTime(String isoTimestamp) {
+  final date = DateTime.parse(isoTimestamp).toLocal();
+  final now = DateTime.now();
+  final time = '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
+  if (isToday) return time;
+  return '${date.day} ${_shortMonths[date.month - 1]} $time';
+}
