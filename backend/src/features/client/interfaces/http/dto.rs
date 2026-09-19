@@ -2,6 +2,12 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::features::client::domain::{ClientAddress, ClientPaymentMethod};
+use crate::shared::{validation, AppError};
+
+pub const MAX_ADDRESS_LABEL_CHARS: usize = 60;
+pub const MAX_ADDRESS_DETAIL_CHARS: usize = 300;
+pub const MAX_PAYMENT_LABEL_CHARS: usize = 60;
+pub const MAX_PAYMENT_DETAIL_CHARS: usize = 120;
 
 #[derive(Serialize)]
 pub struct AddressResponse {
@@ -26,6 +32,19 @@ pub struct AddAddressRequest {
     pub detail: String,
 }
 
+impl AddAddressRequest {
+    /// Returns the request with its text normalised, so the caller stores
+    /// what the user meant rather than the padding around it. Validating
+    /// without using the result would accept `"  Casa  "` and store it,
+    /// leaving "Casa" and "  Casa  " as two different labels.
+    pub fn validated(self) -> Result<Self, AppError> {
+        Ok(Self {
+            label: validation::required_text("label", &self.label, MAX_ADDRESS_LABEL_CHARS)?,
+            detail: validation::required_text("detail", &self.detail, MAX_ADDRESS_DETAIL_CHARS)?,
+        })
+    }
+}
+
 #[derive(Serialize)]
 pub struct PaymentMethodResponse {
     pub id: Uuid,
@@ -47,6 +66,16 @@ impl From<ClientPaymentMethod> for PaymentMethodResponse {
 pub struct AddPaymentMethodRequest {
     pub label: String,
     pub detail: String,
+}
+
+impl AddPaymentMethodRequest {
+    /// See [`AddAddressRequest::validated`].
+    pub fn validated(self) -> Result<Self, AppError> {
+        Ok(Self {
+            label: validation::required_text("label", &self.label, MAX_PAYMENT_LABEL_CHARS)?,
+            detail: validation::required_text("detail", &self.detail, MAX_PAYMENT_DETAIL_CHARS)?,
+        })
+    }
 }
 
 #[derive(Deserialize)]

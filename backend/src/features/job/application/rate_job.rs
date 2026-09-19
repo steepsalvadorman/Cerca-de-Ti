@@ -2,6 +2,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::features::job::domain::{JobError, JobRepository};
+use crate::features::technician::domain::TechnicianRepository;
 
 pub struct RateJobInput {
     pub job_request_id: Uuid,
@@ -12,11 +13,18 @@ pub struct RateJobInput {
 
 pub struct RateJobUseCase {
     job_repo: Arc<dyn JobRepository>,
+    technician_repo: Arc<dyn TechnicianRepository>,
 }
 
 impl RateJobUseCase {
-    pub fn new(job_repo: Arc<dyn JobRepository>) -> Self {
-        Self { job_repo }
+    pub fn new(
+        job_repo: Arc<dyn JobRepository>,
+        technician_repo: Arc<dyn TechnicianRepository>,
+    ) -> Self {
+        Self {
+            job_repo,
+            technician_repo,
+        }
     }
 
     pub async fn execute(&self, input: RateJobInput) -> Result<(), JobError> {
@@ -32,6 +40,14 @@ impl RateJobUseCase {
         job.rate(input.rating, input.comment)?;
 
         self.job_repo.save_job_request(&job).await?;
+
+        if let Some(profile_id) = job.technician_profile_id {
+            self.technician_repo
+                .recalculate_rating_from_jobs(profile_id)
+                .await
+                .map_err(|e| JobError::Repository(e.to_string()))?;
+        }
+
         Ok(())
     }
 }

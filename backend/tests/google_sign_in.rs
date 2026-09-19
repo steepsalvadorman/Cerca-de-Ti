@@ -75,6 +75,18 @@ impl UserRepository for InMemoryUsers {
         }
         Ok(())
     }
+
+    async fn count_with_password_hash(&self, hash: &str) -> Result<i64, AuthError> {
+        let count = self
+            .users
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|u| u.password_hash.as_ref().is_some_and(|h| h.as_str() == hash))
+            .count();
+
+        Ok(count as i64)
+    }
 }
 
 /// Hands back whatever identity the test set up, standing in for a token
@@ -197,14 +209,60 @@ async fn signing_in_again_reuses_the_same_account() {
     assert_eq!(users.users.lock().unwrap().len(), 1);
 }
 
+/// The account pre-hijack this test guards against (GAP-111):
+///
+/// 1. An attacker registers `ana@example.com` with a password they choose.
+/// 2. Ana signs in with Google. Google has verified the address, but the
+///    local account carries the *attacker's* password.
+///
+/// Linking on the strength of the email alone let Ana's Google sign-in
+/// adopt the attacker's account, and the attacker kept a working password
+/// to everything Ana then did inside it. Google verifying the address
+/// proves Ana owns it; it does not prove the local password belongs to
+/// her. So the link is refused instead.
 #[tokio::test]
-async fn google_links_to_the_account_that_already_owns_the_email() {
+async fn google_does_not_adopt_an_account_that_has_its_own_password() {
     let users = Arc::new(InMemoryUsers::default());
-    let existing = User::register(
+    let attacker_owned = User::register(
         Email::parse("ana@example.com").unwrap(),
         "Ana Quispe".to_string(),
         Role::Client,
         PasswordHash::new("argon2-hash".to_string()),
+    );
+    users.insert(&attacker_owned).await.unwrap();
+
+    let error = expect_error(
+        use_case(
+            users.clone(),
+            identity("google-sub-1", "ana@example.com", true, Some("Ana")),
+        )
+        .execute(input(Some("technician")))
+        .await,
+        "a Google sign-in aimed at a password-protected account",
+    );
+
+    assert!(matches!(error, AuthError::LinkRequiresPassword));
+    // Nothing may have been linked: handing back a session here is exactly
+    // the takeover.
+    assert!(
+        users.identities.lock().unwrap().is_empty(),
+        "the Google identity must not be attached to the attacker's account"
+    );
+    assert_eq!(users.users.lock().unwrap().len(), 1);
+}
+
+/// The safe half of the same rule: an account created by a provider has no
+/// second credential for anyone to hold, so its email may be adopted
+/// without further proof. This is how someone who first signed in with
+/// Google on another provider (or a future Apple/Google mix) keeps one
+/// account instead of two.
+#[tokio::test]
+async fn google_adopts_a_password_less_account_with_the_same_verified_email() {
+    let users = Arc::new(InMemoryUsers::default());
+    let existing = User::register_with_provider(
+        Email::parse("ana@example.com").unwrap(),
+        "Ana Quispe".to_string(),
+        Role::Client,
     );
     users.insert(&existing).await.unwrap();
 
@@ -222,6 +280,7 @@ async fn google_links_to_the_account_that_already_owns_the_email() {
     // existing client as a technician.
     assert_eq!(result.authenticated.user.role, Role::Client);
     assert_eq!(users.users.lock().unwrap().len(), 1);
+    assert_eq!(users.identities.lock().unwrap().len(), 1);
 }
 
 #[tokio::test]

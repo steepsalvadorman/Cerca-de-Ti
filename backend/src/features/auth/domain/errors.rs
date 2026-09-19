@@ -16,6 +16,8 @@ pub enum AuthError {
     WeakPassword,
     #[error("this account signs in with Google")]
     PasswordLoginUnavailable,
+    #[error("this email already has a password on Cerca — sign in with it to link Google")]
+    LinkRequiresPassword,
     #[error("could not verify that Google account")]
     InvalidProviderToken,
     #[error("that Google account has no verified email address")]

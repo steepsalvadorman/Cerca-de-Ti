@@ -16,6 +16,8 @@ pub async fn send_message(
     current_user: CurrentUser,
     Json(body): Json<SendMessageRequest>,
 ) -> Result<(StatusCode, Json<ChatMessageResponse>), AppError> {
+    body.validate()?;
+
     let use_case = SendMessageUseCase::new(
         state.chat_repository.clone(),
         state.job_repository.clone(),

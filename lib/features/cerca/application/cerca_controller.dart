@@ -116,11 +116,16 @@ class CercaController extends _$CercaController {
   int get uploadedDocsCount =>
       state.docs.values.where((v) => v == DocStatus.uploaded).length;
 
+  /// Progress counts only the mandatory documents. `seguro` is optional,
+  /// so dividing by the whole list left a technician who had uploaded
+  /// everything required reading "3 de 4" forever — the backend calls that
+  /// state verified (`MANDATORY_DOCUMENT_KEYS`).
   bool get allDocsUploaded =>
-      uploadedDocsCount == CercaSeedData.docRequirements.length;
+      uploadedDocsCount >= CercaSeedData.mandatoryDocRequirements.length;
 
-  double get docsProgress =>
-      uploadedDocsCount / CercaSeedData.docRequirements.length;
+  double get docsProgress => (uploadedDocsCount /
+          CercaSeedData.mandatoryDocRequirements.length)
+      .clamp(0.0, 1.0);
 
   FeeConfig get currentFeeConfig => CercaSeedData.feeConfig[state.feeType]!;
 

@@ -129,4 +129,14 @@ impl UserRepository for PostgresUserRepository {
 
         Ok(())
     }
+
+    async fn count_with_password_hash(&self, hash: &str) -> Result<i64, AuthError> {
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users WHERE password_hash = $1")
+            .bind(hash)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| AuthError::Repository(e.to_string()))?;
+
+        Ok(count.0)
+    }
 }

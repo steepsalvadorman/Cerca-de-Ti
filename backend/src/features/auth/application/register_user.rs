@@ -46,7 +46,11 @@ impl RegisterUserUseCase {
             return Err(AuthError::EmailAlreadyExists);
         }
 
-        let hash = self.hasher.hash(&input.password).map_err(|_| AuthError::Hashing)?;
+        // Off the async runtime: Argon2id is deliberately expensive, and
+        // hashing inline let a registration flood occupy every worker.
+        let hash = super::ports::hash_password(self.hasher.clone(), input.password.clone())
+            .await
+            .map_err(|_| AuthError::Hashing)?;
         let user = User::register(email, input.name, role, PasswordHash::new(hash));
 
         self.repository.insert(&user).await?;

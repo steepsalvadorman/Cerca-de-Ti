@@ -18,9 +18,10 @@ use backend::features::auth::domain::Role;
 use backend::features::auth::infrastructure::{
     Argon2PasswordHasher, JwtTokenService, PostgresUserRepository, UnconfiguredIdentityVerifier,
 };
+use backend::features::auth::interfaces::http::routes::AUTH_ATTEMPTS_PER_MINUTE;
 use backend::features::chat::infrastructure::PostgresChatRepository;
 use backend::features::client::infrastructure::PostgresClientRepository;
-use backend::features::job::infrastructure::PostgresJobRepository;
+use backend::features::job::infrastructure::{FakePaymentGateway, PostgresJobRepository};
 use backend::features::technician::infrastructure::{PostgresTechnicianRepository, UnconfiguredObjectStorage};
 use backend::features::tracking::infrastructure::PostgresTrackingRepository;
 use backend::routes::app_router;
@@ -40,6 +41,7 @@ fn test_state(pool: PgPool) -> AppState {
         technician_repository: Arc::new(PostgresTechnicianRepository::new(pool.clone())),
         client_repository: Arc::new(PostgresClientRepository::new(pool.clone())),
         job_repository: Arc::new(PostgresJobRepository::new(pool.clone())),
+        payment_gateway: Arc::new(FakePaymentGateway),
         chat_repository: Arc::new(PostgresChatRepository::new(pool.clone())),
         tracking_repository: Arc::new(PostgresTrackingRepository::new(pool)),
         // These tests only assert who may reach a route, never that an
@@ -179,4 +181,85 @@ async fn the_providers_listing_stays_public(pool: PgPool) {
     // `/providers` feeds the home screen before a technician has picked
     // anything — it is intentionally the one unauthenticated data route.
     assert_eq!(status_of(&pool, "GET", "/providers", None, None).await, StatusCode::OK);
+}
+
+/// The regression test for GAP-118.
+///
+/// `/auth/login` and `/auth/register` each run a full Argon2id evaluation,
+/// so leaving them unmetered made a denial-of-service free: an
+/// unauthenticated caller could keep the blocking pool saturated. The
+/// limiter must trip well before an attacker can do meaningful work.
+///
+/// This drives a **single** `app_router` across every attempt. `status_of`
+/// builds a fresh router per call, and `auth_routes()` builds its limiter
+/// once per construction — so calling `status_of` in a loop would hand
+/// every request a brand-new budget and never accumulate anything.
+#[sqlx::test(migrations = "./migrations")]
+async fn repeated_login_attempts_are_rate_limited(pool: PgPool) {
+    let router = app_router(test_state(pool.clone()), &[]);
+    let attempts = (AUTH_ATTEMPTS_PER_MINUTE + 3) as usize;
+    let mut statuses = Vec::with_capacity(attempts);
+
+    for _ in 0..attempts {
+        let request = Request::builder()
+            .method("POST")
+            .uri("/auth/login")
+            .header("Content-Type", "application/json")
+            .body(Body::from(
+                r#"{"email":"someone@example.com","password":"wrong-password"}"#,
+            ))
+            .unwrap();
+
+        // `oneshot` consumes the service, so clone the router instead of
+        // rebuilding it: the limiter lives inside and must survive.
+        statuses.push(router.clone().oneshot(request).await.unwrap().status());
+    }
+
+    assert!(
+        statuses.contains(&StatusCode::TOO_MANY_REQUESTS),
+        "a burst of login attempts must eventually be refused, got {statuses:?}"
+    );
+
+    // The first attempts must still have been *processed* (401 for bad
+    // credentials), not refused outright: the limiter has to leave room
+    // for a real user who mistypes a password.
+    assert_eq!(
+        statuses[0],
+        StatusCode::UNAUTHORIZED,
+        "the first attempt must reach the handler, got {statuses:?}"
+    );
+
+    // And it stays tripped rather than letting later requests through.
+    assert_eq!(statuses.last().copied().unwrap(), StatusCode::TOO_MANY_REQUESTS);
+}
+
+/// The credential limiter must not bleed into unrelated routes: a wall of
+/// failed logins should not lock someone out of browsing providers.
+#[sqlx::test(migrations = "./migrations")]
+async fn rate_limiting_logins_does_not_block_other_routes(pool: PgPool) {
+    let router = app_router(test_state(pool.clone()), &[]);
+
+    for _ in 0..(AUTH_ATTEMPTS_PER_MINUTE + 3) {
+        let request = Request::builder()
+            .method("POST")
+            .uri("/auth/login")
+            .header("Content-Type", "application/json")
+            .body(Body::from(
+                r#"{"email":"someone@example.com","password":"wrong-password"}"#,
+            ))
+            .unwrap();
+        let _ = router.clone().oneshot(request).await.unwrap();
+    }
+
+    let browse = Request::builder()
+        .method("GET")
+        .uri("/providers")
+        .body(Body::empty())
+        .unwrap();
+
+    assert_eq!(
+        router.oneshot(browse).await.unwrap().status(),
+        StatusCode::OK,
+        "an unrelated public route must keep working while auth is throttled"
+    );
 }

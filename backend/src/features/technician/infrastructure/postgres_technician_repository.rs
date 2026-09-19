@@ -309,4 +309,28 @@ impl TechnicianRepository for PostgresTechnicianRepository {
 
         Ok(())
     }
+
+    async fn recalculate_rating_from_jobs(
+        &self,
+        technician_profile_id: i32,
+    ) -> Result<(), TechnicianError> {
+        sqlx::query(
+            "UPDATE technician_profiles tp \
+             SET rating = COALESCE(stats.avg_rating, 5.0), \
+                 reviews = COALESCE(stats.review_count, 0) \
+             FROM ( \
+                 SELECT AVG(rating::float8) AS avg_rating, \
+                        COUNT(*)::int AS review_count \
+                 FROM job_requests \
+                 WHERE technician_profile_id = $1 AND rating IS NOT NULL \
+             ) stats \
+             WHERE tp.id = $1",
+        )
+        .bind(technician_profile_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| TechnicianError::Repository(e.to_string()))?;
+
+        Ok(())
+    }
 }

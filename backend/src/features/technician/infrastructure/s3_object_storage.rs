@@ -6,7 +6,7 @@
 //! itself, so switching providers is a change of environment variables,
 //! not of code.
 //!
-//! Signing a URL is pure local arithmetic — no network call — so this
+//! Signing a URL is pure local arithmetic Ã¢â‚¬â€ no network call Ã¢â‚¬â€ so this
 //! adapter needs no HTTP client at all. That is why the signing is
 //! written out here instead of depending on `aws-sdk-s3`.
 
@@ -14,7 +14,7 @@ use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 
-use crate::features::technician::application::ObjectStorage;
+use crate::features::technician::application::{ObjectMetadata, ObjectStorage};
 use crate::features::technician::domain::TechnicianError;
 
 type HmacSha256 = Hmac<Sha256>;
@@ -45,12 +45,24 @@ pub struct S3ObjectStorage {
     host: String,
     base_path: String,
     config: S3Config,
+    http: reqwest::Client,
 }
 
 impl S3ObjectStorage {
     pub fn new(config: S3Config) -> Self {
         let (host, base_path) = split_endpoint(&config.endpoint);
-        Self { host, base_path, config }
+        Self {
+            host,
+            base_path,
+            config,
+            // `head_object` is the one call that leaves this process, so
+            // the client is built once. A hung bucket must not hold a
+            // request handler open indefinitely.
+            http: reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(10))
+                .build()
+                .unwrap_or_default(),
+        }
     }
 
     fn presign(&self, method: &str, key: &str) -> String {
@@ -63,36 +75,165 @@ impl S3ObjectStorage {
             &self.config.secret_access_key,
             EXPIRES_SECONDS,
             Utc::now(),
+            None,
+        )
+    }
+
+    /// Same as [`Self::presign`], but with a signed `Range` header, so the
+    /// server can fetch just the first bytes of an object.
+    fn presign_range(&self, key: &str, first_bytes: usize) -> String {
+        presign_url(
+            "GET",
+            &self.host,
+            &format!("{}/{}/{}", self.base_path, self.config.bucket, key),
+            &self.config.region,
+            &self.config.access_key_id,
+            &self.config.secret_access_key,
+            EXPIRES_SECONDS,
+            Utc::now(),
+            Some(("range", &format!("bytes=0-{}", first_bytes.saturating_sub(1)))),
         )
     }
 }
 
+#[async_trait::async_trait]
 impl ObjectStorage for S3ObjectStorage {
-    fn presign_put(&self, key: &str, _content_type: &str) -> Result<String, TechnicianError> {
-        // `content_type` is deliberately not part of the signature: doing
-        // so would force the client's `Content-Type` header to match
-        // byte-for-byte, and any charset suffix an HTTP client tacks on
-        // turns into an opaque 403. The declared type is validated
-        // against an allowlist and recorded in Postgres instead.
+    fn presign_put(
+        &self,
+        key: &str,
+        content_type: &str,
+        max_bytes: u64,
+    ) -> Result<String, TechnicianError> {
+        // The declared `content_type` is *not* signed, deliberately: making
+        // the client echo it byte-for-byte turns any charset suffix into an
+        // opaque 403, and a query-string signature cannot express a size
+        // range anyway (`content-length-range` belongs to a POST policy).
+        //
+        // So this URL only authorises "PUT exactly this object". Both
+        // constraints are enforced after the fact by `head_object` during
+        // confirmation, which is where the trust decision actually lives:
+        // the URL grants permission to store bytes, never permission to be
+        // believed about them.
+        let _ = (content_type, max_bytes);
         Ok(self.presign("PUT", key))
     }
 
     fn presign_get(&self, key: &str) -> Result<String, TechnicianError> {
         Ok(self.presign("GET", key))
     }
+
+    async fn head_object(&self, key: &str) -> Result<Option<ObjectMetadata>, TechnicianError> {
+        let url = self.presign("HEAD", key);
+
+        let response = self.http.head(&url).send().await.map_err(|e| {
+            tracing::error!(error = %e, "could not reach the document bucket");
+            TechnicianError::StorageUnavailable
+        })?;
+
+        // 404 (and 403 for a missing object on some providers) means the
+        // client never uploaded: a normal outcome, not a failure.
+        if response.status() == reqwest::StatusCode::NOT_FOUND
+            || response.status() == reqwest::StatusCode::FORBIDDEN
+        {
+            return Ok(None);
+        }
+
+        if !response.status().is_success() {
+            tracing::error!(status = %response.status(), "the document bucket refused a HEAD");
+            return Err(TechnicianError::StorageUnavailable);
+        }
+
+        let size_bytes = response
+            .headers()
+            .get(reqwest::header::CONTENT_LENGTH)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<u64>().ok())
+            // A 200 without a length is not something to guess at.
+            .ok_or_else(|| {
+                tracing::error!("the bucket answered HEAD without a Content-Length");
+                TechnicianError::StorageUnavailable
+            })?;
+
+        let content_type = response
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .map(|value| value.to_string());
+
+        Ok(Some(ObjectMetadata { size_bytes, content_type }))
+    }
+
+    async fn read_prefix(
+        &self,
+        key: &str,
+        first_bytes: usize,
+    ) -> Result<Option<Vec<u8>>, TechnicianError> {
+        if first_bytes == 0 {
+            return Ok(Some(Vec::new()));
+        }
+
+        let url = self.presign_range(key, first_bytes);
+
+        let response = self
+            .http
+            .get(&url)
+            .header(reqwest::header::RANGE, format!("bytes=0-{}", first_bytes - 1))
+            .send()
+            .await
+            .map_err(|e| {
+                tracing::error!(error = %e, "could not read the document prefix");
+                TechnicianError::StorageUnavailable
+            })?;
+
+        if response.status() == reqwest::StatusCode::NOT_FOUND
+            || response.status() == reqwest::StatusCode::FORBIDDEN
+        {
+            return Ok(None);
+        }
+
+        if !response.status().is_success() {
+            tracing::error!(status = %response.status(), "the bucket refused a ranged GET");
+            return Err(TechnicianError::StorageUnavailable);
+        }
+
+        let bytes = response.bytes().await.map_err(|e| {
+            tracing::error!(error = %e, "the document prefix did not read");
+            TechnicianError::StorageUnavailable
+        })?;
+
+        Ok(Some(bytes.to_vec()))
+    }
 }
 
 /// Stand-in used when no bucket is configured. Rather than handing out
 /// URLs that would fail deep inside an upload, it fails immediately and
-/// says why — a missing deploy step, not a bug in the caller.
+/// says why Ã¢â‚¬â€ a missing deploy step, not a bug in the caller.
 pub struct UnconfiguredObjectStorage;
 
+#[async_trait::async_trait]
 impl ObjectStorage for UnconfiguredObjectStorage {
-    fn presign_put(&self, _key: &str, _content_type: &str) -> Result<String, TechnicianError> {
+    fn presign_put(
+        &self,
+        _key: &str,
+        _content_type: &str,
+        _max_bytes: u64,
+    ) -> Result<String, TechnicianError> {
         Err(TechnicianError::StorageUnavailable)
     }
 
     fn presign_get(&self, _key: &str) -> Result<String, TechnicianError> {
+        Err(TechnicianError::StorageUnavailable)
+    }
+
+    async fn head_object(&self, _key: &str) -> Result<Option<ObjectMetadata>, TechnicianError> {
+        Err(TechnicianError::StorageUnavailable)
+    }
+
+    async fn read_prefix(
+        &self,
+        _key: &str,
+        _first_bytes: usize,
+    ) -> Result<Option<Vec<u8>>, TechnicianError> {
         Err(TechnicianError::StorageUnavailable)
     }
 }
@@ -116,6 +257,12 @@ fn split_endpoint(endpoint: &str) -> (String, String) {
 /// Builds a SigV4 presigned URL. Every input is explicit (including
 /// `now`) so the signing itself can be exercised without a bucket, a
 /// clock, or a network.
+///
+/// `extra_signed_header` adds one optional header to the signature. It
+/// exists for the ranged `GET` that reads an object's first bytes: S3
+/// validates the `Range` header against the signature, so it has to be
+/// signed rather than merely sent. Signed headers must be lowercase and
+/// sorted, which is why `host` stays first.
 #[allow(clippy::too_many_arguments)]
 fn presign_url(
     method: &str,
@@ -126,10 +273,16 @@ fn presign_url(
     secret_access_key: &str,
     expires_seconds: u64,
     now: DateTime<Utc>,
+    extra_signed_header: Option<(&str, &str)>,
 ) -> String {
     let amz_date = now.format("%Y%m%dT%H%M%SZ").to_string();
     let date_stamp = now.format("%Y%m%d").to_string();
     let scope = format!("{date_stamp}/{region}/{SERVICE}/aws4_request");
+
+    let signed_headers = match extra_signed_header {
+        Some((name, _)) => format!("host;{name}"),
+        None => "host".to_string(),
+    };
 
     // Already in the order SigV4 requires (query parameters sorted by
     // name): Algorithm, Credential, Date, Expires, SignedHeaders.
@@ -138,7 +291,7 @@ fn presign_url(
         ("X-Amz-Credential", format!("{access_key_id}/{scope}")),
         ("X-Amz-Date", amz_date.clone()),
         ("X-Amz-Expires", expires_seconds.to_string()),
-        ("X-Amz-SignedHeaders", "host".to_string()),
+        ("X-Amz-SignedHeaders", signed_headers),
     ]
     .iter()
     .map(|(name, value)| format!("{}={}", uri_encode(name, true), uri_encode(value, true)))
@@ -147,8 +300,19 @@ fn presign_url(
 
     let encoded_uri = uri_encode(canonical_uri, false);
 
+    // Canonical headers are lowercase, sorted, and each ends with a
+    // newline; `host` sorts before anything else used here.
+    let canonical_headers = match extra_signed_header {
+        Some((name, value)) => format!("host:{host}\n{name}:{value}\n"),
+        None => format!("host:{host}\n"),
+    };
+    let signed_headers_for_request = match extra_signed_header {
+        Some((name, _)) => format!("host;{name}"),
+        None => "host".to_string(),
+    };
+
     let canonical_request = format!(
-        "{method}\n{encoded_uri}\n{canonical_query_string}\nhost:{host}\n\nhost\nUNSIGNED-PAYLOAD",
+        "{method}\n{encoded_uri}\n{canonical_query_string}\n{canonical_headers}\n{signed_headers_for_request}\nUNSIGNED-PAYLOAD",
     );
 
     let string_to_sign = format!(
@@ -198,9 +362,12 @@ fn uri_encode(input: &str, encode_slash: bool) -> String {
 mod tests {
     use super::*;
 
+    const MAX_TEST_BYTES: u64 = 10 * 1024 * 1024;
+
     /// The worked example from AWS's own SigV4 documentation. If this
     /// passes, the signing math matches what every S3-compatible
-    /// provider verifies against.
+    /// provider verifies against â€” including after the extra-header
+    /// parameter was added for ranged reads.
     #[test]
     fn matches_the_aws_reference_presigned_url() {
         let url = presign_url(
@@ -212,6 +379,7 @@ mod tests {
             "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
             86400,
             "2013-05-24T00:00:00Z".parse::<DateTime<Utc>>().unwrap(),
+            None,
         );
 
         assert!(
@@ -252,7 +420,7 @@ mod tests {
             bucket: "cerca-docs".to_string(),
         });
 
-        let url = storage.presign_put("technicians/7/cedula/abc.jpg", "image/jpeg").unwrap();
+        let url = storage.presign_put("technicians/7/cedula/abc.jpg", "image/jpeg", MAX_TEST_BYTES).unwrap();
 
         assert!(url.starts_with("https://acct.r2.cloudflarestorage.com/cerca-docs/technicians/7/cedula/abc.jpg?"));
         for parameter in [
@@ -270,8 +438,37 @@ mod tests {
     #[test]
     fn an_unconfigured_bucket_fails_loudly() {
         assert!(matches!(
-            UnconfiguredObjectStorage.presign_put("k", "image/jpeg"),
+            UnconfiguredObjectStorage.presign_put("k", "image/jpeg", MAX_TEST_BYTES),
             Err(TechnicianError::StorageUnavailable)
         ));
+    }
+
+    /// A ranged read has to sign `Range`, because S3 validates that header
+    /// against the signature â€” an unsigned one is rejected outright.
+    #[test]
+    fn a_ranged_read_signs_the_range_header() {
+        let storage = S3ObjectStorage::new(S3Config {
+            endpoint: "https://acct.r2.cloudflarestorage.com".to_string(),
+            region: "auto".to_string(),
+            access_key_id: "key-id".to_string(),
+            secret_access_key: "secret".to_string(),
+            bucket: "cerca-docs".to_string(),
+        });
+
+        let url = storage.presign_range("technicians/7/cedula/abc.jpg", 12);
+
+        assert!(
+            url.contains("X-Amz-SignedHeaders=host%3Brange"),
+            "Range must be a signed header for the request to be accepted: {url}"
+        );
+
+        // An ordinary presign must NOT claim to sign a header the caller
+        // will never send, or every request would 403 on a signature
+        // mismatch.
+        let plain = storage.presign("GET", "technicians/7/cedula/abc.jpg");
+        assert!(
+            plain.contains("X-Amz-SignedHeaders=host&"),
+            "a plain presign must sign host and nothing else: {plain}"
+        );
     }
 }

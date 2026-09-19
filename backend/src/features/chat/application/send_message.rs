@@ -2,6 +2,9 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::features::chat::domain::{ChatError, ChatMessage, ChatRepository};
+use crate::features::job::application::job_participation::{
+    ensure_chat_writable, is_job_participant,
+};
 use crate::features::job::domain::JobRepository;
 use crate::features::technician::domain::TechnicianRepository;
 
@@ -36,15 +39,20 @@ impl SendMessageUseCase {
             .find_job_request_by_id(input.job_request_id)
             .await
             .map_err(|e| ChatError::Repository(e.to_string()))?
-            .ok_or(ChatError::Unauthorized)?;
+            .ok_or(ChatError::JobNotFound)?;
 
-        // Verify that the sender is authorized to chat in this room
-        if input.sender_role == "client" {
-            if job.client_id != input.sender_id {
-                return Err(ChatError::Unauthorized);
-            }
+        if !is_job_participant(&job, input.sender_id, &self.technician_repo)
+            .await
+            .map_err(|e| ChatError::Repository(e.to_string()))?
+        {
+            return Err(ChatError::Unauthorized);
+        }
+
+        // The HTTP layer still labels the sender; double-check the role
+        // matches who they actually are on this job.
+        if input.sender_role == "client" && job.client_id != input.sender_id {
+            return Err(ChatError::Unauthorized);
         } else if input.sender_role == "technician" {
-            // Find technician profile by user_id to compare with job.technician_profile_id
             let tech_profile = self.technician_repo
                 .find_profile_by_user_id(input.sender_id)
                 .await
@@ -54,15 +62,11 @@ impl SendMessageUseCase {
             if job.technician_profile_id != Some(tech_profile.id) {
                 return Err(ChatError::Unauthorized);
             }
-        } else {
+        } else if input.sender_role != "client" {
             return Err(ChatError::Unauthorized);
         }
 
-        // Cerca's whole business model is the contact fee, so the channel
-        // that hands over contact details stays shut until it is paid.
-        if !job.fee_paid {
-            return Err(ChatError::FeeNotPaid);
-        }
+        ensure_chat_writable(&job.status)?;
 
         let message = ChatMessage::new(
             input.job_request_id,

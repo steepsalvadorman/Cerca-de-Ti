@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::features::chat::domain::ChatMessage;
+use crate::shared::{validation, AppError};
 
 #[derive(Serialize)]
 pub struct ChatMessageResponse {
@@ -32,4 +33,19 @@ impl From<ChatMessage> for ChatMessageResponse {
 #[derive(Deserialize)]
 pub struct SendMessageRequest {
     pub text: String,
+}
+
+/// Longest message accepted (GAP-02).
+///
+/// Bounded because the thread is polled: every message is re-sent to both
+/// participants on a timer, so one huge message is not a one-off cost but
+/// a recurring one. A blank message is rejected too — "send" with an empty
+/// box is a mis-tap, and storing it fills the thread with noise.
+pub const MAX_MESSAGE_CHARS: usize = 2000;
+
+impl SendMessageRequest {
+    pub fn validate(&self) -> Result<(), AppError> {
+        validation::required_text("text", &self.text, MAX_MESSAGE_CHARS)?;
+        Ok(())
+    }
 }

@@ -4,6 +4,19 @@ use uuid::Uuid;
 use crate::features::job::domain::{JobError, JobRepository, JobStatus};
 use crate::features::technician::domain::TechnicianRepository;
 
+/// Largest offer the server accepts, in soles.
+///
+/// `price` is an `i32`, so without a ceiling a client could post
+/// `2147483647` and poison the client's bidding screen — and any later
+/// arithmetic on it. The bound is deliberately loose: it exists to reject
+/// the absurd, not to second-guess a quote (GAP-06).
+const MAX_OFFER_PRICE: i32 = 1_000_000;
+
+/// Longest estimate text accepted. Bids carry a free-text ETA that the
+/// client renders verbatim; unbounded text is a storage and payload
+/// problem (GAP-02).
+const MAX_ETA_LEN: usize = 60;
+
 pub struct SubmitOfferInput {
     pub job_request_id: Uuid,
     pub technician_user_id: Uuid,
@@ -31,10 +44,20 @@ impl SubmitOfferUseCase {
             .map_err(|e| JobError::Repository(e.to_string()))?
             .ok_or(JobError::Unauthorized)?; // Only registered technicians can bid
 
-        if input.price <= 0 {
+        // Before anything else: an unverified technician is not a bidder.
+        // This is the action `is_verified` is supposed to vouch for, and
+        // gating it here (rather than only hiding the feed) is what makes
+        // the badge mean something — the feed is a convenience, this is
+        // the rule.
+        if !profile.is_verified {
+            return Err(JobError::TechnicianNotVerified);
+        }
+
+        if input.price <= 0 || input.price > MAX_OFFER_PRICE {
             return Err(JobError::InvalidOffer);
         }
-        if input.eta.trim().is_empty() {
+        let eta = input.eta.trim();
+        if eta.is_empty() || eta.chars().count() > MAX_ETA_LEN {
             return Err(JobError::InvalidOffer);
         }
 
@@ -66,7 +89,7 @@ impl SubmitOfferUseCase {
         }
 
         self.job_repo
-            .add_job_offer(input.job_request_id, profile.id, input.price, input.eta)
+            .add_job_offer(input.job_request_id, profile.id, input.price, eta.to_string())
             .await?;
 
         Ok(())

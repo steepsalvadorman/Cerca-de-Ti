@@ -4,7 +4,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::features::job::domain::{
-    JobError, JobOffer, JobRequest, JobRepository, JobStatus,
+    JobError, JobOffer, JobPaymentRecord, JobRequest, JobRepository, JobStatus,
 };
 use crate::features::technician::domain::TechnicianProfile;
 
@@ -28,6 +28,10 @@ struct JobRequestRow {
     title: Option<String>,
     address: Option<String>,
     comment: Option<String>,
+    cancelled_at: Option<DateTime<Utc>>,
+    cancelled_by: Option<Uuid>,
+    cancellation_reason: Option<String>,
+    version: i32,
     created_at: DateTime<Utc>,
 }
 
@@ -55,6 +59,10 @@ impl TryFrom<JobRequestRow> for JobRequest {
             title: row.title,
             address: row.address,
             comment: row.comment,
+            cancelled_at: row.cancelled_at,
+            cancelled_by: row.cancelled_by,
+            cancellation_reason: row.cancellation_reason,
+            version: row.version,
             created_at: row.created_at,
         })
     }
@@ -104,8 +112,8 @@ impl PostgresJobRepository {
 impl JobRepository for PostgresJobRepository {
     async fn create_job_request(&self, job: &JobRequest) -> Result<(), JobError> {
         sqlx::query(
-            "INSERT INTO job_requests (id, client_id, technician_profile_id, tech_team_id, job_kind, status, timeline_step, fee_type, fee_amount, fee_paid, payment_method, payment_done, mobility_included, agreed_price, rating, title, address, comment, created_at) \
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)",
+            "INSERT INTO job_requests (id, client_id, technician_profile_id, tech_team_id, job_kind, status, timeline_step, fee_type, fee_amount, fee_paid, payment_method, payment_done, mobility_included, agreed_price, rating, title, address, comment, cancelled_at, cancelled_by, cancellation_reason, version, created_at) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)",
         )
         .bind(job.id)
         .bind(job.client_id)
@@ -125,6 +133,10 @@ impl JobRepository for PostgresJobRepository {
         .bind(&job.title)
         .bind(&job.address)
         .bind(&job.comment)
+        .bind(job.cancelled_at)
+        .bind(job.cancelled_by)
+        .bind(&job.cancellation_reason)
+        .bind(job.version)
         .bind(job.created_at)
         .execute(&self.pool)
         .await
@@ -136,7 +148,7 @@ impl JobRepository for PostgresJobRepository {
     async fn find_job_request_by_id(&self, id: Uuid) -> Result<Option<JobRequest>, JobError> {
         let row = sqlx::query_as::<_, JobRequestRow>(
             "SELECT id, client_id, technician_profile_id, tech_team_id, job_kind, status, timeline_step, \
-             fee_type, fee_amount, fee_paid, payment_method, payment_done, mobility_included, agreed_price, rating, title, address, comment, created_at \
+             fee_type, fee_amount, fee_paid, payment_method, payment_done, mobility_included, agreed_price, rating, title, address, comment, cancelled_at, cancelled_by, cancellation_reason, version, created_at \
              FROM job_requests WHERE id = $1",
         )
         .bind(id)
@@ -154,7 +166,12 @@ impl JobRepository for PostgresJobRepository {
     }
 
     async fn save_job_request(&self, job: &JobRequest) -> Result<(), JobError> {
-        sqlx::query(
+        // The write is conditional on the version the caller read: if
+        // another request got there first, this matches no rows and the
+        // change is refused rather than silently overwriting theirs
+        // (GAP-07). `version = version + 1` moves the row on for the next
+        // writer.
+        let result = sqlx::query(
             "UPDATE job_requests SET \
              technician_profile_id = $2, \
              tech_team_id = $3, \
@@ -165,8 +182,14 @@ impl JobRepository for PostgresJobRepository {
              payment_done = $8, \
              agreed_price = $9, \
              rating = $10, \
-             comment = $11 \
-             WHERE id = $1",
+             comment = $11, \
+             cancelled_at = $12, \
+             cancelled_by = $13, \
+             cancellation_reason = $14, \
+             title = $16, \
+             address = $17, \
+             version = version + 1 \
+             WHERE id = $1 AND version = $15",
         )
         .bind(job.id)
         .bind(job.technician_profile_id)
@@ -179,9 +202,26 @@ impl JobRepository for PostgresJobRepository {
         .bind(job.agreed_price)
         .bind(job.rating)
         .bind(&job.comment)
+        .bind(job.cancelled_at)
+        .bind(job.cancelled_by)
+        .bind(&job.cancellation_reason)
+        .bind(job.version)
+        // `title` and `address` were write-once: the INSERT set them and
+        // every later UPDATE ignored them, so an edit through any future
+        // use case would have been silently dropped. Included so the
+        // repository persists the whole aggregate it is handed.
+        .bind(&job.title)
+        .bind(&job.address)
         .execute(&self.pool)
         .await
         .map_err(|e| JobError::Repository(e.to_string()))?;
+
+        if result.rows_affected() == 0 {
+            // Either someone else moved the job on, or it is gone. Both
+            // mean this decision was made against stale information, and
+            // both are a conflict rather than a server fault.
+            return Err(JobError::ConcurrentModification);
+        }
 
         Ok(())
     }
@@ -239,7 +279,7 @@ impl JobRepository for PostgresJobRepository {
     async fn find_client_history(&self, client_id: Uuid) -> Result<Vec<JobRequest>, JobError> {
         let rows = sqlx::query_as::<_, JobRequestRow>(
             "SELECT id, client_id, technician_profile_id, tech_team_id, job_kind, status, timeline_step, \
-             fee_type, fee_amount, fee_paid, payment_method, payment_done, mobility_included, agreed_price, rating, title, address, comment, created_at \
+             fee_type, fee_amount, fee_paid, payment_method, payment_done, mobility_included, agreed_price, rating, title, address, comment, cancelled_at, cancelled_by, cancellation_reason, version, created_at \
              FROM job_requests WHERE client_id = $1 ORDER BY created_at DESC",
         )
         .bind(client_id)
@@ -258,7 +298,7 @@ impl JobRepository for PostgresJobRepository {
     async fn find_assigned_jobs(&self, technician_profile_id: i32) -> Result<Vec<JobRequest>, JobError> {
         let rows = sqlx::query_as::<_, JobRequestRow>(
             "SELECT id, client_id, technician_profile_id, tech_team_id, job_kind, status, timeline_step, \
-             fee_type, fee_amount, fee_paid, payment_method, payment_done, mobility_included, agreed_price, rating, title, address, comment, created_at \
+             fee_type, fee_amount, fee_paid, payment_method, payment_done, mobility_included, agreed_price, rating, title, address, comment, cancelled_at, cancelled_by, cancellation_reason, version, created_at \
              FROM job_requests WHERE technician_profile_id = $1 ORDER BY created_at DESC",
         )
         .bind(technician_profile_id)
@@ -277,7 +317,7 @@ impl JobRepository for PostgresJobRepository {
     async fn find_open_bidding_jobs(&self, excluding_technician_profile_id: i32) -> Result<Vec<JobRequest>, JobError> {
         let rows = sqlx::query_as::<_, JobRequestRow>(
             "SELECT id, client_id, technician_profile_id, tech_team_id, job_kind, status, timeline_step, \
-             fee_type, fee_amount, fee_paid, payment_method, payment_done, mobility_included, agreed_price, rating, title, address, comment, created_at \
+             fee_type, fee_amount, fee_paid, payment_method, payment_done, mobility_included, agreed_price, rating, title, address, comment, cancelled_at, cancelled_by, cancellation_reason, version, created_at \
              FROM job_requests \
              WHERE job_kind = 'bidding' AND status = 'pending' AND technician_profile_id IS NULL \
              AND id NOT IN (SELECT job_request_id FROM job_offers WHERE technician_profile_id = $1) \
@@ -295,4 +335,59 @@ impl JobRepository for PostgresJobRepository {
         }
         Ok(jobs)
     }
+
+    async fn record_job_payment(&self, payment: &JobPaymentRecord) -> Result<(), JobError> {
+        sqlx::query(
+            "INSERT INTO job_payments \
+             (job_request_id, gateway, gateway_reference, amount_soles, payment_method, status, idempotency_key, simulated) \
+             VALUES ($1, $2, $3, $4, $5, 'captured', $6, $7)",
+        )
+        .bind(payment.job_request_id)
+        .bind(&payment.gateway)
+        .bind(&payment.gateway_reference)
+        .bind(payment.amount_soles)
+        .bind(&payment.payment_method)
+        .bind(payment.idempotency_key)
+        .bind(payment.simulated)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| JobError::Repository(e.to_string()))?;
+
+        Ok(())
+    }
+
+    async fn find_job_payment_by_idempotency_key(
+        &self,
+        idempotency_key: Uuid,
+    ) -> Result<Option<JobPaymentRecord>, JobError> {
+        let row = sqlx::query_as::<_, JobPaymentRow>(
+            "SELECT job_request_id, gateway, gateway_reference, amount_soles, payment_method, idempotency_key, simulated \
+             FROM job_payments WHERE idempotency_key = $1",
+        )
+        .bind(idempotency_key)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| JobError::Repository(e.to_string()))?;
+
+        Ok(row.map(|r| JobPaymentRecord {
+            job_request_id: r.job_request_id,
+            gateway: r.gateway,
+            gateway_reference: r.gateway_reference,
+            amount_soles: r.amount_soles,
+            payment_method: r.payment_method,
+            idempotency_key: r.idempotency_key,
+            simulated: r.simulated,
+        }))
+    }
+}
+
+#[derive(sqlx::FromRow)]
+struct JobPaymentRow {
+    job_request_id: Uuid,
+    gateway: String,
+    gateway_reference: String,
+    amount_soles: i32,
+    payment_method: String,
+    idempotency_key: Uuid,
+    simulated: bool,
 }

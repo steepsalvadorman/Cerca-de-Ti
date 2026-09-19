@@ -28,11 +28,19 @@ class _AppFeeScreenState extends ConsumerState<AppFeeScreen> {
     if (_paying) return;
     setState(() => _paying = true);
     try {
-      await ref.read(activeJobControllerProvider.notifier).payFee(paymentMethod);
+      final payment = await ref.read(activeJobControllerProvider.notifier).payFee(paymentMethod);
       final result = ref.read(activeJobControllerProvider);
       if (result.hasError) throw result.error!;
       ref.read(cercaControllerProvider.notifier).payFee();
       if (!mounted) return;
+      if (payment?.simulated ?? false) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pago simulado — no se cobró dinero real.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
       context.go(RoutePaths.tracking);
     } catch (e) {
       if (!mounted) return;

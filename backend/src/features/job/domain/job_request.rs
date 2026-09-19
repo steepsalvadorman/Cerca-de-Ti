@@ -69,6 +69,19 @@ pub struct JobRequest {
     pub title: Option<String>,
     pub address: Option<String>,
     pub comment: Option<String>,
+    /// Set exactly when `status` is `Cancelled`; a CHECK constraint in
+    /// migration 0012 enforces that correspondence.
+    pub cancelled_at: Option<DateTime<Utc>>,
+    /// Who ended it. Kept separate from the status because "the client
+    /// withdrew before anyone bid" and "the technician walked away
+    /// mid-job" are the same status and very different facts.
+    pub cancelled_by: Option<Uuid>,
+    pub cancellation_reason: Option<String>,
+    /// Optimistic-concurrency counter (migration 0013). Incremented on the
+    /// way out of `save_job_request`, and compared so a second writer
+    /// whose read is stale matches no rows instead of overwriting the
+    /// first (GAP-07).
+    pub version: i32,
     pub created_at: DateTime<Utc>,
 }
 
@@ -104,6 +117,10 @@ impl JobRequest {
             title,
             address,
             comment: None,
+            cancelled_at: None,
+            cancelled_by: None,
+            cancellation_reason: None,
+            version: 0,
             created_at: Utc::now(),
         }
     }
@@ -116,7 +133,16 @@ impl JobRequest {
     /// replay the state change — without the early return, paying twice
     /// on a finished job would reset it to `Active` at step 0, undoing
     /// a completed job.
+    ///
+    /// The terminal check comes *first*, and that ordering matters: while
+    /// the early return ran before any status validation, a *free* job
+    /// (already `fee_paid`) that had been cancelled or completed answered
+    /// `Ok` here, so `POST /pay` reported success on a job nobody could
+    /// pay for. Reachable the moment cancellation existed (GAP-12).
     pub fn pay_fee(&mut self) -> Result<(), JobError> {
+        if self.is_terminal() {
+            return Err(JobError::InvalidStatusTransition);
+        }
         if self.fee_paid {
             return Ok(());
         }
@@ -125,6 +151,7 @@ impl JobRequest {
         }
 
         self.fee_paid = true;
+        self.payment_done = true;
         self.status = JobStatus::Active;
         self.timeline_step = 0; // Confirmado
         Ok(())
@@ -156,6 +183,41 @@ impl JobRequest {
         self.rating = Some(rating);
         self.comment = comment;
         Ok(())
+    }
+
+    /// Ends a job that has not finished.
+    ///
+    /// `cancelled` existed in the domain and in the database CHECK from the
+    /// start, but nothing ever wrote it, so there was no way out of a job:
+    /// a client whose auction drew no bids kept it forever, and an
+    /// abandoned job sat in `active` for good (GAP-19).
+    ///
+    /// Terminal states are refused — there is nothing to cancel once the
+    /// work is done, and cancelling twice is not a second event. Calling
+    /// this on an already-cancelled job is an error rather than a no-op
+    /// because the caller had to read the job to get here, so a repeat
+    /// means a stale view or a double submit, and silently accepting it
+    /// would erase the original reason and timestamp.
+    pub fn cancel(&mut self, by: Uuid, reason: Option<String>) -> Result<(), JobError> {
+        match self.status {
+            JobStatus::Completed => return Err(JobError::InvalidStatusTransition),
+            JobStatus::Cancelled => return Err(JobError::InvalidStatusTransition),
+            JobStatus::Pending | JobStatus::Active => {}
+        }
+
+        self.status = JobStatus::Cancelled;
+        self.cancelled_at = Some(Utc::now());
+        self.cancelled_by = Some(by);
+        self.cancellation_reason = reason
+            .map(|reason| reason.trim().to_string())
+            .filter(|reason| !reason.is_empty());
+
+        Ok(())
+    }
+
+    /// True once the job has reached a state nothing can move it out of.
+    pub fn is_terminal(&self) -> bool {
+        matches!(self.status, JobStatus::Completed | JobStatus::Cancelled)
     }
 }
 

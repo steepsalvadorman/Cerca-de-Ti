@@ -30,4 +30,13 @@ pub trait UserRepository: Send + Sync {
         subject: &str,
         user_id: Uuid,
     ) -> Result<(), AuthError>;
+
+    /// How many accounts still carry a given password hash.
+    ///
+    /// Exists for the deployment guard in `main`: migration 0002 seeded
+    /// accounts whose hash is public knowledge (`DEMO_SEED_PASSWORD_HASH`),
+    /// so a production database must be refused if any of them survived.
+    /// Comparing hashes — rather than emails — also leaves an account
+    /// whose password was since changed alone.
+    async fn count_with_password_hash(&self, hash: &str) -> Result<i64, AuthError>;
 }

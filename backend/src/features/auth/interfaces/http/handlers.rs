@@ -16,6 +16,8 @@ pub async fn register(
     State(state): State<AppState>,
     Json(body): Json<RegisterRequest>,
 ) -> Result<(StatusCode, Json<AuthResponse>), AppError> {
+    body.validate()?;
+
     let use_case = RegisterUserUseCase::new(
         state.user_repository.clone(),
         state.password_hasher.clone(),
@@ -38,6 +40,8 @@ pub async fn login(
     State(state): State<AppState>,
     Json(body): Json<LoginRequest>,
 ) -> Result<Json<AuthResponse>, AppError> {
+    body.validate()?;
+
     let use_case = LoginUserUseCase::new(
         state.user_repository.clone(),
         state.password_hasher.clone(),

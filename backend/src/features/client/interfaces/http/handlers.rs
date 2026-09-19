@@ -48,6 +48,8 @@ pub async fn add_address(
     current_user: ClientUser,
     Json(body): Json<AddAddressRequest>,
 ) -> Result<(StatusCode, Json<AddressResponse>), AppError> {
+    let body = body.validated()?;
+
     let use_case = AddAddressUseCase::new(state.client_repository.clone());
     let address = use_case
         .execute(AddAddressInput {
@@ -73,6 +75,8 @@ pub async fn add_payment_method(
     current_user: ClientUser,
     Json(body): Json<AddPaymentMethodRequest>,
 ) -> Result<(StatusCode, Json<PaymentMethodResponse>), AppError> {
+    let body = body.validated()?;
+
     let use_case = AddPaymentMethodUseCase::new(state.client_repository.clone());
     let method = use_case
         .execute(AddPaymentMethodInput {

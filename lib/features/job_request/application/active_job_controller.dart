@@ -1,5 +1,6 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../data/job_repository.dart';
 import '../domain/job_request.dart';
 import 'job_session_controller.dart';
 
@@ -22,12 +23,13 @@ class ActiveJobController extends _$ActiveJobController {
     state = await AsyncValue.guard(() => ref.read(jobRepositoryProvider).getJob(jobId));
   }
 
-  Future<void> payFee(String paymentMethod) async {
+  Future<PayFeeResult?> payFee(String paymentMethod) async {
     final jobId = ref.read(jobSessionControllerProvider);
-    if (jobId == null) return;
+    if (jobId == null) return null;
     state = const AsyncLoading();
-    await ref.read(jobRepositoryProvider).payFee(jobId, paymentMethod);
+    final result = await ref.read(jobRepositoryProvider).payFee(jobId, paymentMethod);
     await _refresh();
+    return result;
   }
 
   Future<void> advance() async {

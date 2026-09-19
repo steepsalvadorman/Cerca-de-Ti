@@ -43,10 +43,16 @@ impl LoginUserUseCase {
             .as_ref()
             .ok_or(AuthError::PasswordLoginUnavailable)?;
 
-        let matches = self
-            .hasher
-            .verify(&input.password, hash.as_str())
-            .map_err(|_| AuthError::InvalidCredentials)?;
+        // Off the async runtime, for the same reason as registration: a
+        // verify is a full Argon2id evaluation, and doing it inline let a
+        // few hundred concurrent bad passwords stall every other route.
+        let matches = super::ports::verify_password(
+            self.hasher.clone(),
+            input.password.clone(),
+            hash.as_str().to_string(),
+        )
+        .await
+        .map_err(|_| AuthError::InvalidCredentials)?;
 
         if !matches {
             return Err(AuthError::InvalidCredentials);

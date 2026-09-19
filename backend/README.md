@@ -13,8 +13,33 @@ cargo run
 ```
 
 Migrations in `migrations/` run automatically at startup, so a fresh
-database is ready after the first boot. Seed data (4 technicians, 1
-client, password `password123`) comes with migration 0002.
+database is ready after the first boot.
+
+Migrations describe the schema only. Demo data (4 technicians, 1 client,
+their profiles and teams) lives in `seeds/demo.sql` and is **opt-in**:
+
+```bash
+cargo run --bin seed           # load the demo fixture
+```
+
+It used to be part of migration 0002, which meant five accounts sharing the
+hash of `password123` — and `password123` itself, in this file — existed in
+**every** environment, production included. Two things changed:
+
+* the seed block in migration 0002 is neutralised by migration 0011, which
+  nulls those password hashes; and
+* every demo account in `seeds/demo.sql` ships with a **NULL** password, so
+  the fixture makes the app browsable without carrying a usable credential.
+
+To sign in as a demo user locally, give it a password you choose:
+
+```bash
+cargo run --bin seed -- --hash 'my-local-password'
+# then: UPDATE users SET password_hash = '<that hash>' WHERE email = 'client@cerca.com';
+```
+
+`APP_ENV=production` makes the server refuse to boot while any account still
+carries the old public hash.
 
 ```bash
 cargo test                    # needs the Postgres above running
@@ -29,11 +54,13 @@ they never touch your development data.
 |---|---|---|
 | `DATABASE_URL` | yes | Server refuses to start without it |
 | `JWT_SECRET` | yes | Changing it invalidates every existing session |
+| `APP_ENV` | no | Set to `production` to enable the deployment guards (today: refuse to boot while a publicly-known demo password hash is still in the database) |
 | `PORT` | no | Defaults to 8080; Render injects its own |
 | `RUST_LOG` | no | Defaults to `backend=debug,tower_http=debug` |
 | `CORS_ALLOWED_ORIGINS` | no | Comma-separated. Empty = no browser may call the API cross-origin, which is correct for a mobile-only client |
 | `S3_*` | no | Document uploads answer 503 until these are set; everything else works |
 | `GOOGLE_CLIENT_IDS` | no | Comma-separated OAuth client ids allowed in a Google ID token's `aud`. `/auth/google` answers 503 until set; everything else works |
+| `PAYMENTS_MODE` | no | Defaults to `fake`: simulates fee capture, persists a row in `job_payments`, and returns `{ "simulated": true }`. The server **refuses to boot** with `APP_ENV=production` and `PAYMENTS_MODE=fake` — wire a real adapter before going live with money |
 
 ## Deploying
 

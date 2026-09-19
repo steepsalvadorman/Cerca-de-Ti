@@ -6,6 +6,9 @@ use uuid::Uuid;
 pub use send_message::{SendMessageInput, SendMessageUseCase};
 
 use crate::features::chat::domain::{ChatError, ChatMessage, ChatRepository};
+use crate::features::job::application::job_participation::{
+    ensure_chat_readable, is_job_participant,
+};
 use crate::features::job::domain::JobRepository;
 use crate::features::technician::domain::TechnicianRepository;
 
@@ -33,33 +36,16 @@ impl GetMessagesUseCase {
             .find_job_request_by_id(job_request_id)
             .await
             .map_err(|e| ChatError::Repository(e.to_string()))?
-            .ok_or(ChatError::Unauthorized)?;
+            .ok_or(ChatError::JobNotFound)?;
 
-        let mut is_authorized = job.client_id == reader_id;
-
-        if !is_authorized {
-            if let Some(tech_id) = job.technician_profile_id {
-                if let Some(tech_profile) = self.technician_repo
-                    .find_profile_by_user_id(reader_id)
-                    .await
-                    .map_err(|e| ChatError::Repository(e.to_string()))?
-                {
-                    if tech_profile.id == tech_id {
-                        is_authorized = true;
-                    }
-                }
-            }
-        }
-
-        if !is_authorized {
+        if !is_job_participant(&job, reader_id, &self.technician_repo)
+            .await
+            .map_err(|e| ChatError::Repository(e.to_string()))?
+        {
             return Err(ChatError::Unauthorized);
         }
 
-        // Same gate as sending: reading the thread would expose whatever
-        // contact details were already exchanged.
-        if !job.fee_paid {
-            return Err(ChatError::FeeNotPaid);
-        }
+        ensure_chat_readable(&job.status)?;
 
         self.chat_repo.find_messages_by_job_id(job_request_id).await
     }

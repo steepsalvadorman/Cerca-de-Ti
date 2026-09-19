@@ -11,6 +11,13 @@ import '../domain/entities/week_day.dart';
 
 /// Seed data mirrored 1:1 from the Cerca App.dc.html prototype
 /// (claude.ai/design project c9b3052a-5884-4c72-bbe1-c4a55a0943c9).
+///
+/// MONEY IS IN SOLES (S/). This file used to carry the prototype's
+/// Chilean-peso figures ($15.000, laborCost 780000…), which survived the
+/// move to the Peru market: the same team would render as
+/// "S/ 1,265,000.00" from here while the backend served "S/ 5,110.00"
+/// from migration `0007_peru_currency_seed_data.sql`. Whenever these
+/// values duplicate something the backend owns, they must agree with it.
 class CercaSeedData {
   CercaSeedData._();
 
@@ -32,55 +39,59 @@ class CercaSeedData {
     Category(id: 'construccion', label: 'Construcción', mono: 'CO'),
   ];
 
+  // priceLabel mirrors `technician_profiles.price_label` after migration
+  // 0007 (S/ 60 / 70 / 80 / 50).
   static const List<Technician> technicians = [
     Technician(
       id: 1, name: 'Marcelo Reyes', mono: 'MR', oficio: 'Gasfitero',
-      rating: 4.9, reviews: 132, distance: '0.6 km', priceLabel: 'Desde \$15.000',
+      rating: 4.9, reviews: 132, distance: '0.6 km', priceLabel: 'Desde S/ 60',
       pinTop: 0.30, pinLeft: 0.60,
     ),
     Technician(
       id: 2, name: 'Ana Fuentes', mono: 'AF', oficio: 'Electricista',
-      rating: 4.8, reviews: 97, distance: '1.1 km', priceLabel: 'Desde \$18.000',
+      rating: 4.8, reviews: 97, distance: '1.1 km', priceLabel: 'Desde S/ 70',
       pinTop: 0.55, pinLeft: 0.25,
     ),
     Technician(
       id: 3, name: 'Jorge Salinas', mono: 'JS', oficio: 'Carpintero',
-      rating: 4.7, reviews: 64, distance: '1.4 km', priceLabel: 'Desde \$20.000',
+      rating: 4.7, reviews: 64, distance: '1.4 km', priceLabel: 'Desde S/ 80',
       pinTop: 0.20, pinLeft: 0.20,
     ),
     Technician(
       id: 4, name: 'Patricia Vega', mono: 'PV', oficio: 'Cerrajera',
-      rating: 4.9, reviews: 210, distance: '2.0 km', priceLabel: 'Desde \$12.000',
+      rating: 4.9, reviews: 210, distance: '2.0 km', priceLabel: 'Desde S/ 50',
       pinTop: 0.65, pinLeft: 0.75,
     ),
   ];
 
+  // laborCost/materialsCost/mobilityCost mirror `tech_teams` after
+  // migration 0007, and priceLabel is their sum (3.150 + 1.700 + 260).
   static const List<TechTeam> teams = [
     TechTeam(
       id: 1, name: 'Equipo AquaBuild', mono: 'AB', oficio: 'Piscinas y obras de agua',
-      rating: 4.9, reviews: 41, distance: '3.2 km', priceLabel: 'Desde \$850.000',
+      rating: 4.9, reviews: 41, distance: '3.2 km', priceLabel: 'Desde S/ 5,110',
       pinTop: 0.35, pinLeft: 0.58,
-      crew: 5, projects: 118, laborCost: 780000, materialsCost: 420000, mobilityCost: 65000,
+      crew: 5, projects: 118, laborCost: 3150, materialsCost: 1700, mobilityCost: 260,
     ),
     TechTeam(
       id: 2, name: 'Equipo Terra Sur', mono: 'TS', oficio: 'Pozos y conexiones',
-      rating: 4.8, reviews: 29, distance: '5.8 km', priceLabel: 'Desde \$420.000',
+      rating: 4.8, reviews: 29, distance: '5.8 km', priceLabel: 'Desde S/ 2,320',
       pinTop: 0.22, pinLeft: 0.28,
-      crew: 4, projects: 76, laborCost: 340000, materialsCost: 150000, mobilityCost: 90000,
+      crew: 4, projects: 76, laborCost: 1360, materialsCost: 600, mobilityCost: 360,
     ),
     TechTeam(
       id: 3, name: 'Equipo Muro Firme', mono: 'MF', oficio: 'Tarrajeo y construcción',
-      rating: 4.7, reviews: 53, distance: '4.1 km', priceLabel: 'Desde \$310.000',
+      rating: 4.7, reviews: 53, distance: '4.1 km', priceLabel: 'Desde S/ 1,700',
       pinTop: 0.62, pinLeft: 0.70,
-      crew: 6, projects: 94, laborCost: 260000, materialsCost: 110000, mobilityCost: 55000,
+      crew: 6, projects: 94, laborCost: 1040, materialsCost: 440, mobilityCost: 220,
     ),
   ];
 
   static const List<JobOffer> offers = [
-    JobOffer(id: 1, name: 'Marcelo Reyes', mono: 'MR', oficio: 'Gasfitero', rating: 4.9, price: 32000, eta: 'Hoy, 16:00', verified: true),
-    JobOffer(id: 2, name: 'Felipe Correa', mono: 'FC', oficio: 'Gasfitero', rating: 4.6, price: 27000, eta: 'Mañana, 09:00', verified: true),
-    JobOffer(id: 3, name: 'Ana Fuentes', mono: 'AF', oficio: 'Técnica multioficio', rating: 4.8, price: 35000, eta: 'Hoy, 18:30', verified: true),
-    JobOffer(id: 4, name: 'Diego Muñoz', mono: 'DM', oficio: 'Gasfitero', rating: 4.5, price: 24000, eta: 'Mañana, 14:00', verified: false),
+    JobOffer(id: 1, name: 'Marcelo Reyes', mono: 'MR', oficio: 'Gasfitero', rating: 4.9, price: 130, eta: 'Hoy, 16:00', verified: true),
+    JobOffer(id: 2, name: 'Felipe Correa', mono: 'FC', oficio: 'Gasfitero', rating: 4.6, price: 110, eta: 'Mañana, 09:00', verified: true),
+    JobOffer(id: 3, name: 'Ana Fuentes', mono: 'AF', oficio: 'Técnica multioficio', rating: 4.8, price: 140, eta: 'Hoy, 18:30', verified: true),
+    JobOffer(id: 4, name: 'Diego Muñoz', mono: 'DM', oficio: 'Gasfitero', rating: 4.5, price: 95, eta: 'Mañana, 14:00', verified: false),
   ];
 
   static const List<ChatMessageEntry> chatMessages = [
@@ -97,6 +108,13 @@ class CercaSeedData {
     DocRequirement(key: 'seguro', label: 'Seguro de responsabilidad (opcional)', mono: 'SR', mandatory: false),
   ];
 
+  /// The documents that actually gate verification. The backend owns this
+  /// list (`MANDATORY_DOCUMENT_KEYS`); `seguro` is optional and must never
+  /// be counted toward progress, or a technician with all three required
+  /// documents still reads "3 de 4".
+  static List<DocRequirement> get mandatoryDocRequirements =>
+      docRequirements.where((d) => d.mandatory).toList(growable: false);
+
   static const List<TimelineStepDef> timelineSteps = [
     TimelineStepDef(step: 0, label: 'Confirmado'),
     TimelineStepDef(step: 1, label: 'En camino'),
@@ -104,6 +122,10 @@ class CercaSeedData {
     TimelineStepDef(step: 3, label: 'Finalizado'),
   ];
 
+  /// `amount` is only a fallback for when the job has not loaded yet: the
+  /// charged fee is whatever the backend put in `job.fee_amount`
+  /// (see `AppFeeScreen`). Keep it in sync with
+  /// `fee_amount_for` in `backend/src/features/job/domain/job_request.rs`.
   static const Map<FeeType, FeeConfig> feeConfig = {
     FeeType.direct: FeeConfig(
       title: 'Contacto directo gratuito',
@@ -113,7 +135,7 @@ class CercaSeedData {
     FeeType.bidding: FeeConfig(
       title: 'Tarifa de licitación',
       amount: 4,
-      desc: 'Cerca cobra S/ 4 por gestionar la licitación entre varios técnicos verificados. El trabajo se paga directamente al técnico elegido.',
+      desc: 'Cerca cobra una tarifa por gestionar la licitación entre varios técnicos verificados. El trabajo se paga directamente al técnico elegido.',
     ),
     FeeType.project: FeeConfig(
       title: 'Solicitud de proyecto gratuita',
@@ -143,8 +165,8 @@ class CercaSeedData {
   ];
 
   static const List<ClientHistoryEntry> clientHistory = [
-    ClientHistoryEntry(category: 'Fuga de agua', tech: 'Marcelo Reyes', date: '2 jul', status: ClientHistoryStatus.completed, price: '\$32.000'),
-    ClientHistoryEntry(category: 'Instalación eléctrica', tech: 'Ana Fuentes', date: '18 jun', status: ClientHistoryStatus.completed, price: '\$27.000'),
+    ClientHistoryEntry(category: 'Fuga de agua', tech: 'Marcelo Reyes', date: '2 jul', status: ClientHistoryStatus.completed, price: 'S/ 130.00'),
+    ClientHistoryEntry(category: 'Instalación eléctrica', tech: 'Ana Fuentes', date: '18 jun', status: ClientHistoryStatus.completed, price: 'S/ 110.00'),
     ClientHistoryEntry(category: 'Cerradura', tech: 'Patricia Vega', date: '30 may', status: ClientHistoryStatus.cancelled, price: '—'),
   ];
 }

@@ -4,6 +4,13 @@ import '../../../core/network/api_client.dart';
 import '../domain/job_offer.dart';
 import '../domain/job_request.dart';
 
+class PayFeeResult {
+  const PayFeeResult({required this.simulated, required this.gatewayReference});
+
+  final bool simulated;
+  final String gatewayReference;
+}
+
 class TechnicianJobsBundle {
   const TechnicianJobsBundle({required this.assigned, required this.openForBid});
 
@@ -50,9 +57,14 @@ class JobRepository {
     }
   }
 
-  Future<void> payFee(String jobId, String paymentMethod) async {
+  Future<PayFeeResult> payFee(String jobId, String paymentMethod) async {
     try {
-      await _dio.post('/jobs/$jobId/pay', data: {'payment_method': paymentMethod});
+      final response = await _dio.post('/jobs/$jobId/pay', data: {'payment_method': paymentMethod});
+      final data = response.data as Map<String, dynamic>;
+      return PayFeeResult(
+        simulated: data['simulated'] as bool? ?? false,
+        gatewayReference: data['gateway_reference'] as String? ?? '',
+      );
     } on DioException catch (e) {
       throw apiExceptionOf(e);
     }

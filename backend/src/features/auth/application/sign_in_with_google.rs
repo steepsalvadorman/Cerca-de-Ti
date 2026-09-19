@@ -29,9 +29,19 @@ pub struct GoogleSignIn {
 ///
 /// Three cases, in order:
 /// 1. We already know this Google account → sign in.
-/// 2. We know the (Google-verified) email from a password signup → link
-///    the identity to that account rather than creating a duplicate.
+/// 2. We know the (Google-verified) email from an account that has **no
+///    password of its own** → link the identity to it rather than creating
+///    a duplicate.
 /// 3. Nobody matches → create the account, once we know the role.
+///
+/// The password caveat in step 2 is the fix for an account pre-hijack:
+/// linking on the strength of an email alone let an attacker register
+/// `victim@gmail.com` with a password of their choosing, after which the
+/// victim's first Google sign-in adopted the *attacker's* account — with
+/// the attacker's password still attached. Google verifying the address
+/// proves the victim owns it, but it does not prove that whoever holds the
+/// local password is the same person, so an account that has a password is
+/// never adopted silently (`AuthError::LinkRequiresPassword`).
 pub struct SignInWithGoogleUseCase {
     repository: Arc<dyn UserRepository>,
     verifier: Arc<dyn IdentityVerifier>,
@@ -69,8 +79,17 @@ impl SignInWithGoogleUseCase {
             return self.session_for(user, false);
         }
 
-        // 2. Same person, signed up with a password earlier.
+        // 2. Same person, and an account we can safely adopt.
         if let Some(user) = self.repository.find_by_email(&email).await? {
+            // Only an account with no password of its own may be linked
+            // without further proof: it was created by a provider that
+            // already verified this same address, so there is no second
+            // credential for anyone to hold. An account with a password
+            // could belong to somebody else (the pre-hijack above).
+            if user.password_hash.is_some() {
+                return Err(AuthError::LinkRequiresPassword);
+            }
+
             self.repository
                 .link_identity(IdentityProvider::Google, &identity.subject, user.id)
                 .await?;

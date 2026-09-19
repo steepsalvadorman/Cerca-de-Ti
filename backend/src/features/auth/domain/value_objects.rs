@@ -89,3 +89,18 @@ impl PasswordHash {
         &self.0
     }
 }
+
+/// The Argon2 hash of `password123` that migration 0002 seeded into five
+/// demo accounts, and that `backend/README.md` used to document.
+///
+/// It is public knowledge the moment anyone reads the repository, so it
+/// must never be a working credential on a deployed server. Two things
+/// depend on this constant:
+///
+///   * `main` refuses to boot with `APP_ENV=production` while any row
+///     still carries it (`UserRepository::count_with_password_hash`);
+///   * migration 0011 nulls it out of databases that already ran 0002.
+///
+/// See GAP-113 in docs/qa/plan-de-solucion-vacios.md.
+pub const DEMO_SEED_PASSWORD_HASH: &str =
+    "$argon2id$v=19$m=19456,t=2,p=1$k8CqEmfoRpEwkTszAlG5Hw$0r40UshfbvLQaYGu0089358JjzidfPdV/aebyH3MaPA";

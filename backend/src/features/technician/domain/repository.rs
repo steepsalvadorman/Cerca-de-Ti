@@ -41,4 +41,11 @@ pub trait TechnicianRepository: Send + Sync {
         technician_profile_id: i32,
         document_key: &str,
     ) -> Result<(), TechnicianError>;
+
+    /// Recomputes `rating` and `reviews` from completed jobs that carry
+    /// a score. Called after a client rates a job (GAP-16).
+    async fn recalculate_rating_from_jobs(
+        &self,
+        technician_profile_id: i32,
+    ) -> Result<(), TechnicianError>;
 }

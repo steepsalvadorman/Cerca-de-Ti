@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use uuid::Uuid;
 
+use crate::features::job::application::job_participation::ensure_location_publishable;
 use crate::features::job::domain::JobRepository;
 use crate::features::technician::domain::TechnicianRepository;
 use crate::features::tracking::domain::{TechnicianLocation, TrackingError, TrackingRepository};
@@ -36,7 +37,7 @@ impl UpdateLocationUseCase {
             .find_job_request_by_id(input.job_request_id)
             .await
             .map_err(|e| TrackingError::Repository(e.to_string()))?
-            .ok_or(TrackingError::Unauthorized)?;
+            .ok_or(TrackingError::JobNotFound)?;
 
         let tech_profile = self.technician_repo
             .find_profile_by_user_id(input.technician_user_id)
@@ -44,16 +45,11 @@ impl UpdateLocationUseCase {
             .map_err(|e| TrackingError::Repository(e.to_string()))?
             .ok_or(TrackingError::Unauthorized)?;
 
-        // Ensure the technician is assigned to the job request
         if job.technician_profile_id != Some(tech_profile.id) {
             return Err(TrackingError::Unauthorized);
         }
 
-        // Live location is part of what the contact fee buys; no point
-        // collecting GPS for a job the client never paid for.
-        if !job.fee_paid {
-            return Err(TrackingError::FeeNotPaid);
-        }
+        ensure_location_publishable(&job.status)?;
 
         let location = TechnicianLocation::new(
             input.job_request_id,

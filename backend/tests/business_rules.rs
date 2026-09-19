@@ -17,7 +17,8 @@ use backend::features::job::application::{
     SubmitOfferInput, SubmitOfferUseCase,
 };
 use backend::features::job::domain::{JobError, JobRepository, JobRequest};
-use backend::features::job::infrastructure::PostgresJobRepository;
+use backend::features::job::infrastructure::{FakePaymentGateway, PostgresJobRepository};
+use backend::features::job::application::PaymentGateway;
 use backend::features::technician::domain::TechnicianRepository;
 use backend::features::technician::infrastructure::PostgresTechnicianRepository;
 use backend::features::tracking::application::{GetLocationUseCase, UpdateLocationInput, UpdateLocationUseCase};
@@ -26,6 +27,7 @@ use backend::features::tracking::infrastructure::PostgresTrackingRepository;
 struct Ctx {
     jobs: Arc<dyn JobRepository>,
     techs: Arc<dyn TechnicianRepository>,
+    payments: Arc<dyn PaymentGateway>,
     pool: PgPool,
 }
 
@@ -34,6 +36,7 @@ impl Ctx {
         Self {
             jobs: Arc::new(PostgresJobRepository::new(pool.clone())),
             techs: Arc::new(PostgresTechnicianRepository::new(pool.clone())),
+            payments: Arc::new(FakePaymentGateway),
             pool,
         }
     }
@@ -52,8 +55,12 @@ impl Ctx {
 
     async fn technician(&self) -> (Uuid, i32) {
         let user_id = self.user("technician").await;
+        // `is_verified` is TRUE because bidding is gated on it (GAP-05):
+        // these tests are about the auction rules, not about verification,
+        // and an unverified bidder is rejected before any of them apply.
+        // The unverified case has its own test.
         let row: (i32,) = sqlx::query_as(
-            "INSERT INTO technician_profiles (user_id, oficio, pin_top, pin_left) VALUES ($1, 'Gasfitero', 0.5, 0.5) RETURNING id",
+            "INSERT INTO technician_profiles (user_id, oficio, pin_top, pin_left, is_verified) VALUES ($1, 'Gasfitero', 0.5, 0.5, TRUE) RETURNING id",
         )
         .bind(user_id)
         .fetch_one(&self.pool)
@@ -77,8 +84,8 @@ impl Ctx {
             .unwrap()
     }
 
-    async fn pay(&self, job_id: Uuid, client_id: Uuid) -> Result<(), JobError> {
-        PayFeeUseCase::new(self.jobs.clone())
+    async fn pay(&self, job_id: Uuid, client_id: Uuid) -> Result<backend::features::job::application::PayFeeResult, JobError> {
+        PayFeeUseCase::new(self.jobs.clone(), self.payments.clone())
             .execute(PayFeeInput { job_request_id: job_id, client_id, payment_method: "card".to_string() })
             .await
     }
@@ -182,8 +189,17 @@ async fn paying_twice_is_harmless_and_never_resurrects_a_finished_job(pool: PgPo
     let completed = ctx.jobs.find_job_request_by_id(job.id).await.unwrap().unwrap();
     assert_eq!(completed.status.as_str(), "completed");
 
-    // A retried payment must be a no-op, not a reset back to step 0.
-    ctx.pay(job.id, client_id).await.expect("a repeated payment is not an error");
+    // A retried payment must not reset the job back to step 0 — and it must
+    // not report success either. A `direct` job is born `fee_paid`, so the
+    // idempotency early-return used to answer `Ok` here and the client had
+    // no way to tell that it had just "paid" a finished job (GAP-12). The
+    // terminal check now runs first, so this is refused outright. What the
+    // name promises is unchanged: nothing resurrects the job.
+    let retry = ctx.pay(job.id, client_id).await;
+    assert!(
+        matches!(retry, Err(JobError::InvalidStatusTransition)),
+        "paying a finished job must be refused, got {retry:?}"
+    );
 
     let after = ctx.jobs.find_job_request_by_id(job.id).await.unwrap().unwrap();
     assert_eq!(after.status.as_str(), "completed");

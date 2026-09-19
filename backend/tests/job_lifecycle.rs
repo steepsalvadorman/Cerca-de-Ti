@@ -11,10 +11,10 @@ use uuid::Uuid;
 
 use backend::features::job::application::{
     AdvanceProgressUseCase, ChooseOfferInput, ChooseOfferUseCase, CreateJobInput, CreateJobUseCase,
-    PayFeeInput, PayFeeUseCase, SubmitOfferInput, SubmitOfferUseCase,
+    PayFeeInput, PayFeeUseCase, RateJobInput, RateJobUseCase, SubmitOfferInput, SubmitOfferUseCase,
 };
 use backend::features::job::domain::JobRepository;
-use backend::features::job::infrastructure::PostgresJobRepository;
+use backend::features::job::infrastructure::{FakePaymentGateway, PostgresJobRepository};
 use backend::features::technician::domain::TechnicianRepository;
 use backend::features::technician::infrastructure::PostgresTechnicianRepository;
 
@@ -31,8 +31,10 @@ async fn create_user(pool: &PgPool, role: &str) -> Uuid {
 }
 
 async fn create_technician_profile(pool: &PgPool, user_id: Uuid) -> i32 {
+    // Verified: bidding requires it (GAP-05), and these tests are about
+    // the lifecycle rather than about verification.
     let row: (i32,) = sqlx::query_as(
-        "INSERT INTO technician_profiles (user_id, oficio, pin_top, pin_left) VALUES ($1, 'Gasfitero', 0.5, 0.5) RETURNING id",
+        "INSERT INTO technician_profiles (user_id, oficio, pin_top, pin_left, is_verified) VALUES ($1, 'Gasfitero', 0.5, 0.5, TRUE) RETURNING id",
     )
     .bind(user_id)
     .fetch_one(pool)
@@ -160,13 +162,14 @@ async fn paying_the_fee_activates_the_job_and_advancing_completes_it(pool: PgPoo
         .await
         .unwrap();
 
-    PayFeeUseCase::new(job_repo.clone())
+    PayFeeUseCase::new(job_repo.clone(), Arc::new(FakePaymentGateway))
         .execute(PayFeeInput { job_request_id: job.id, client_id, payment_method: "card".to_string() })
         .await
         .unwrap();
 
     let after_payment = job_repo.find_job_request_by_id(job.id).await.unwrap().unwrap();
     assert!(after_payment.fee_paid);
+    assert!(after_payment.payment_done);
     assert_eq!(after_payment.status.as_str(), "active");
     assert_eq!(after_payment.timeline_step, 0);
 
@@ -205,7 +208,7 @@ async fn a_technician_not_assigned_to_a_job_cannot_advance_it(pool: PgPool) {
         .await
         .unwrap();
 
-    PayFeeUseCase::new(job_repo.clone())
+    PayFeeUseCase::new(job_repo.clone(), Arc::new(FakePaymentGateway))
         .execute(PayFeeInput { job_request_id: job.id, client_id, payment_method: "cash".to_string() })
         .await
         .unwrap();
@@ -215,4 +218,51 @@ async fn a_technician_not_assigned_to_a_job_cannot_advance_it(pool: PgPool) {
         .await;
 
     assert!(result.is_err(), "a technician not assigned to the job must not be able to advance it");
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn rating_a_job_updates_the_technicians_average(pool: PgPool) {
+    let job_repo: Arc<dyn JobRepository> = Arc::new(PostgresJobRepository::new(pool.clone()));
+    let tech_repo: Arc<dyn TechnicianRepository> = Arc::new(PostgresTechnicianRepository::new(pool.clone()));
+
+    let client_id = create_user(&pool, "client").await;
+    let tech_user_id = create_user(&pool, "technician").await;
+    let tech_profile_id = create_technician_profile(&pool, tech_user_id).await;
+
+    let job = CreateJobUseCase::new(job_repo.clone())
+        .execute(CreateJobInput {
+            client_id,
+            technician_profile_id: Some(tech_profile_id),
+            tech_team_id: None,
+            job_kind: "direct".to_string(),
+            title: None,
+            address: None,
+            mobility_included: None,
+        })
+        .await
+        .unwrap();
+
+    let advance = AdvanceProgressUseCase::new(job_repo.clone(), tech_repo.clone());
+    for _ in 0..3 {
+        advance.execute(job.id, tech_user_id).await.unwrap();
+    }
+
+    RateJobUseCase::new(job_repo, tech_repo.clone())
+        .execute(RateJobInput {
+            job_request_id: job.id,
+            client_id,
+            rating: 3,
+            comment: Some("Regular".to_string()),
+        })
+        .await
+        .unwrap();
+
+    let profile = tech_repo
+        .find_profile_by_user_id(tech_user_id)
+        .await
+        .unwrap()
+        .expect("profile");
+
+    assert_eq!(profile.reviews, 1);
+    assert!((profile.rating - 3.0).abs() < f64::EPSILON);
 }

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../../../core/network/api_exception.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../cerca/application/cerca_seed_data.dart';
@@ -27,30 +26,11 @@ class TrackingScreen extends ConsumerStatefulWidget {
 }
 
 class _TrackingScreenState extends ConsumerState<TrackingScreen> {
-  bool _advancing = false;
-
-  Future<void> _advance() async {
-    if (_advancing) return;
-    setState(() => _advancing = true);
-    try {
-      await ref.read(activeJobControllerProvider.notifier).advance();
-      final result = ref.read(activeJobControllerProvider);
-      if (result.hasError) throw result.error!;
-    } catch (e) {
-      if (!mounted) return;
-      final message = e is ApiException ? e.message : 'No se pudo actualizar el estado.';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-    } finally {
-      if (mounted) setState(() => _advancing = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final job = ref.watch(activeJobControllerProvider).value;
     final providersPage = ref.watch(providersControllerProvider).value;
     final jobStep = job?.timelineStep ?? 0;
-    final canAdvance = job != null && job.isActive && jobStep < 3;
     final locationAsync = job == null ? null : ref.watch(technicianLocationProvider(job.id));
     final location = locationAsync?.value;
 
@@ -199,16 +179,16 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                 ),
               ),
             ),
+            // The client does not drive the timeline. `advance` is the
+            // assigned technician's action (they are the only one who can
+            // attest the work happened), and the backend refuses it from
+            // anyone else. This screen shows progress and offers the two
+            // things a client can actually do: chat, and pay/rate.
+            // See GAP-15.
             PrimaryActionButton(
-              label: canAdvance ? (_advancing ? 'Actualizando…' : 'Actualizar estado') : 'Ir a pagar y calificar',
-              enabled: !_advancing,
-              onTap: () {
-                if (canAdvance) {
-                  _advance();
-                } else {
-                  context.go(RoutePaths.jobRating);
-                }
-              },
+              label: job?.isCompleted == true ? 'Calificar el trabajo' : 'Ir a pagar y calificar',
+              enabled: true,
+              onTap: () => context.go(RoutePaths.jobRating),
             ),
           ],
         ),

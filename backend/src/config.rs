@@ -6,6 +6,10 @@ pub struct AppConfig {
     pub database_url: String,
     pub jwt_secret: String,
     pub port: u16,
+    /// `APP_ENV`, lowercased and trimmed. `"production"` switches on the
+    /// deployment guards in `main` — today, refusing to boot while a
+    /// publicly-known demo password hash is still in the database.
+    pub environment: String,
     /// Origins allowed to call the API via CORS (e.g. a future admin web
     /// panel). Defaults to empty — the app is mobile-only today, and
     /// mobile clients aren't subject to CORS, so "no origins configured"
@@ -21,6 +25,10 @@ pub struct AppConfig {
     /// `/auth/google` answers 503 rather than accepting tokens minted
     /// for some other app.
     pub google_client_ids: Vec<String>,
+    /// How fee payments are collected. `"fake"` simulates success (dev/test
+    /// only — `main` refuses it in production). Anything else today answers
+    /// 503 until a real PSP adapter is wired (GAP-14).
+    pub payments_mode: String,
 }
 
 impl AppConfig {
@@ -34,6 +42,10 @@ impl AppConfig {
                 .ok()
                 .and_then(|p| p.parse().ok())
                 .unwrap_or(8080),
+            environment: env::var("APP_ENV")
+                .unwrap_or_default()
+                .trim()
+                .to_lowercase(),
             cors_allowed_origins: env::var("CORS_ALLOWED_ORIGINS")
                 .unwrap_or_default()
                 .split(',')
@@ -47,7 +59,20 @@ impl AppConfig {
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
                 .collect(),
+            payments_mode: env::var("PAYMENTS_MODE")
+                .unwrap_or_else(|_| "fake".to_string())
+                .trim()
+                .to_lowercase(),
         }
+    }
+
+    /// True only for an explicit `APP_ENV=production`. Anything else —
+    /// unset, `dev`, `staging` — is treated as not-production, so a
+    /// misconfigured deploy fails open on *convenience* and never on the
+    /// guards themselves (a missing `APP_ENV` cannot silence a security
+    /// check unless it was also missing when the demo data was loaded).
+    pub fn is_production(&self) -> bool {
+        self.environment == "production"
     }
 }
 

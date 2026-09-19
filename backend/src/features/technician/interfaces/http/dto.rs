@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::features::technician::domain::{TechTeam, TechnicianDocument, TechnicianProfile};
+use crate::shared::{validation, AppError};
 
 #[derive(Serialize)]
 pub struct TechnicianResponse {
@@ -97,6 +98,62 @@ pub struct SaveProfileRequest {
     pub categories: Vec<String>,
 }
 
+pub const MAX_OFICIO_CHARS: usize = 80;
+pub const MAX_PRICE_LABEL_CHARS: usize = 60;
+pub const MIN_COVERAGE_KM: i32 = 1;
+/// Roughly the width of Peru. A radius beyond this is not a coverage area,
+/// it is a typo, and a `coverage_km` of `i32::MAX` was accepted before
+/// (GAP-32).
+pub const MAX_COVERAGE_KM: i32 = 500;
+pub const WEEK_DAYS: [&str; 7] = ["lun", "mar", "mie", "jue", "vie", "sab", "dom"];
+/// The canonical trade list. The client's own list is a copy of this one;
+/// this is the copy that decides.
+pub const TRADE_CATEGORIES: [&str; 12] = [
+    "gasfiteria",
+    "electricidad",
+    "carpinteria",
+    "pintura",
+    "cerrajeria",
+    "electrodomesticos",
+    "jardineria",
+    "climatizacion",
+    "piscinas",
+    "pozos",
+    "tarrajeo",
+    "construccion",
+];
+
+impl SaveProfileRequest {
+    pub fn validate(&self) -> Result<(), AppError> {
+        validation::required_text("oficio", &self.oficio, MAX_OFICIO_CHARS)?;
+        validation::required_text("price_label", &self.price_label, MAX_PRICE_LABEL_CHARS)?;
+        validation::in_range(
+            "coverage_km",
+            self.coverage_km as i64,
+            MIN_COVERAGE_KM as i64,
+            MAX_COVERAGE_KM as i64,
+        )?;
+
+        if self.available_days.is_empty() {
+            return Err(AppError::Validation(
+                "selecciona al menos un día disponible".to_string(),
+            ));
+        }
+        validation::list_of_known("available_days", &self.available_days, &WEEK_DAYS, 7)?;
+
+        if self.categories.is_empty() {
+            return Err(AppError::Validation(
+                "selecciona al menos una especialidad".to_string(),
+            ));
+        }
+        // Without this a technician advertised `categories: ["xyz"]` and
+        // appeared in `/providers` for a trade they do not work in.
+        validation::list_of_known("categories", &self.categories, &TRADE_CATEGORIES, 12)?;
+
+        Ok(())
+    }
+}
+
 #[derive(Deserialize)]
 pub struct DocumentUploadUrlRequest {
     /// MIME type of the file about to be uploaded, checked against the
@@ -105,6 +162,22 @@ pub struct DocumentUploadUrlRequest {
     /// Only kept so a reviewer sees what the technician picked; the
     /// object itself is stored under a generated key.
     pub original_filename: Option<String>,
+}
+
+/// Longest original filename kept. It is echoed back in any future review
+/// screen, and was previously stored verbatim — including a 5 MB name, a
+/// path, or a fragment of HTML (GAP-64).
+pub const MAX_ORIGINAL_FILENAME_CHARS: usize = 255;
+
+impl DocumentUploadUrlRequest {
+    pub fn validate(&self) -> Result<(), AppError> {
+        validation::optional_text(
+            "original_filename",
+            self.original_filename.as_deref(),
+            MAX_ORIGINAL_FILENAME_CHARS,
+        )?;
+        Ok(())
+    }
 }
 
 #[derive(Serialize)]

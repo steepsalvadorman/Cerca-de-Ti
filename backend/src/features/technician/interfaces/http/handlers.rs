@@ -54,6 +54,8 @@ pub async fn save_profile(
     current_user: TechnicianUser,
     Json(body): Json<SaveProfileRequest>,
 ) -> Result<StatusCode, AppError> {
+    body.validate()?;
+
     let use_case = SaveTechnicianProfileUseCase::new(
         state.technician_repository.clone(),
         state.user_repository.clone(),
@@ -79,6 +81,8 @@ pub async fn create_document_upload_url(
     current_user: TechnicianUser,
     Json(body): Json<DocumentUploadUrlRequest>,
 ) -> Result<Json<DocumentUploadUrlResponse>, AppError> {
+    body.validate()?;
+
     let use_case = CreateDocumentUploadUrlUseCase::new(
         state.technician_repository.clone(),
         state.object_storage.clone(),
@@ -104,7 +108,12 @@ pub async fn confirm_document_upload(
     Path(document_key): Path<String>,
     current_user: TechnicianUser,
 ) -> Result<StatusCode, AppError> {
-    let use_case = ConfirmDocumentUploadUseCase::new(state.technician_repository.clone());
+    // Confirmation asks the bucket what actually landed, so it needs the
+    // storage port too — not just the repository.
+    let use_case = ConfirmDocumentUploadUseCase::new(
+        state.technician_repository.clone(),
+        state.object_storage.clone(),
+    );
 
     use_case
         .execute(ConfirmDocumentUploadInput {

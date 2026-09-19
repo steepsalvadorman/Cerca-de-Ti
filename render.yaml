@@ -40,6 +40,14 @@ services:
       # clients aren't subject to CORS. Fill in only if a web panel appears.
       - key: CORS_ALLOWED_ORIGINS
         value: ""
+      # Google OAuth client ids accepted in the `aud` claim of an ID token,
+      # comma-separated. REQUIRED in production: with it unset the server
+      # boots with `UnconfiguredIdentityVerifier` and every /auth/google
+      # call answers 503, so the "Continuar con Google" button is dead.
+      # Values come from Google Cloud Console → APIs & Services →
+      # Credentials (Android package com.salvador.cerca + web client id).
+      - key: GOOGLE_CLIENT_IDS
+        sync: false
       # S3-compatible bucket for technician documents (Supabase Storage).
       # Until these are set, uploads answer 503 and nothing else breaks.
       - key: S3_ENDPOINT
@@ -52,5 +60,9 @@ services:
         sync: false
       - key: S3_BUCKET
         sync: false
+      # Simulated fee capture until a real PSP is wired. Safe for staging;
+      # do NOT combine with APP_ENV=production (the server refuses to boot).
+      - key: PAYMENTS_MODE
+        value: fake
     # PORT is deliberately absent: Render injects it, and
     # `AppConfig::from_env` already reads it.
