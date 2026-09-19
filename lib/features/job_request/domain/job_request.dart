@@ -35,4 +35,8 @@ extension JobRequestX on JobRequest {
   bool get isPending => status == 'pending';
   bool get isActive => status == 'active';
   bool get isCompleted => status == 'completed';
+  bool get isCancelled => status == 'cancelled';
+
+  /// Backend allows sending messages only while the job is pending or active.
+  bool get isChatWritable => isPending || isActive;
 }

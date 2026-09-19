@@ -135,7 +135,6 @@ class _BiddingScreenState extends ConsumerState<BiddingScreen> {
                       for (final offer in offers)
                         _OfferCard(
                           offer: offer,
-                          onChat: () => context.go(RoutePaths.chat),
                           onChoose: _choosing ? null : () => _choose(offer),
                         ),
                     Text(
@@ -182,9 +181,8 @@ class _SortChip extends StatelessWidget {
 }
 
 class _OfferCard extends StatelessWidget {
-  const _OfferCard({required this.offer, required this.onChat, required this.onChoose});
+  const _OfferCard({required this.offer, required this.onChoose});
   final JobOffer offer;
-  final VoidCallback onChat;
   final VoidCallback? onChoose;
 
   @override
@@ -251,32 +249,17 @@ class _OfferCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onChat,
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.cercaBorder),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(vertical: 9),
-                  ),
-                  child: Text('Chatear', style: CercaText.sora(fontSize: 12, fontWeight: FontWeight.w600)),
-                ),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: onChoose,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.cercaPrimary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(vertical: 9),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: onChoose,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.cercaPrimary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(vertical: 9),
-                  ),
-                  child: Text('Elegir', style: CercaText.sora(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
-                ),
-              ),
-            ],
+              child: Text('Elegir', style: CercaText.sora(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+            ),
           ),
         ],
       ),

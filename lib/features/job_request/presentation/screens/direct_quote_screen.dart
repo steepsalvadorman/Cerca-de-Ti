@@ -190,33 +190,17 @@ class _DirectQuoteScreenState extends ConsumerState<DirectQuoteScreen> {
             Container(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
               decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.cercaBorder))),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => context.go(RoutePaths.chat),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.cercaPrimary),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: Text('Chatear', style: CercaText.sora(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.cercaPrimary)),
-                    ),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _accepting ? null : () => _acceptQuote(provider!),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.cercaPrimary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton(
-                      onPressed: () => _acceptQuote(provider!),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.cercaPrimary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: Text(_accepting ? 'Aceptando…' : 'Aceptar cotización', style: CercaText.sora(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
-                    ),
-                  ),
-                ],
+                  child: Text(_accepting ? 'Aceptando…' : 'Aceptar cotización', style: CercaText.sora(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+                ),
               ),
             ),
             Padding(

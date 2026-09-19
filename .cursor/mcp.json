@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "dart": {
+      "command": "/home/steep/development/flutter/bin/dart",
+      "args": [
+        "mcp-server",
+        "--force-roots-fallback"
+      ],
+      "env": {
+        "FLUTTER_ROOT": "/home/steep/development/flutter"
+      }
+    }
+  }
+}

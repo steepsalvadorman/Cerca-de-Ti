@@ -1,20 +1,24 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/application/auth_controller.dart';
 import 'api_exception.dart';
 import 'token_storage.dart';
 
-/// Base URL of the Cerca backend. Defaults to the Android emulator's
-/// alias for the host machine's localhost. Override at build/run time
-/// for other targets, e.g.:
+/// Base URL of the Cerca backend. When `API_BASE_URL` is not passed at
+/// compile time, Android targets the emulator alias for the host
+/// (`10.0.2.2`); every other platform uses `localhost`. Override for
+/// physical devices or deployed backends, e.g.:
 /// `flutter run --dart-define=API_BASE_URL=http://192.168.1.20:8080`
-/// (physical device on the same Wi-Fi) or `http://localhost:8080` (iOS
-/// simulator / desktop).
-const String apiBaseUrl = String.fromEnvironment(
-  'API_BASE_URL',
-  defaultValue: 'http://10.0.2.2:8080',
-);
+String get apiBaseUrl {
+  const fromEnv = String.fromEnvironment('API_BASE_URL');
+  if (fromEnv.isNotEmpty) return fromEnv;
+  if (defaultTargetPlatform == TargetPlatform.android) {
+    return 'http://10.0.2.2:8080';
+  }
+  return 'http://localhost:8080';
+}
 
 /// Builds the shared [Dio] client: attaches the stored bearer token to
 /// every request, maps every failure to an [ApiException] so
