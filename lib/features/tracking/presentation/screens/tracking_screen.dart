@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../../core/router/route_paths.dart';
+import '../../../../core/router/back_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../cerca/application/cerca_seed_data.dart';
 import '../../../cerca/domain/entities/timeline_step.dart';
@@ -63,7 +64,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            CercaHeader(title: 'Seguimiento', onBack: () => context.go(RoutePaths.home)),
+            CercaHeader(title: 'Seguimiento', onBack: () => context.goBack(RoutePaths.home)),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
@@ -144,7 +145,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                             ),
                           ),
                           InkWell(
-                            onTap: () => context.go(RoutePaths.chat),
+                            onTap: () => context.push(RoutePaths.chat),
                             customBorder: const CircleBorder(),
                             child: Container(
                               width: 34,
@@ -188,7 +189,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
             PrimaryActionButton(
               label: job?.isCompleted == true ? 'Calificar el trabajo' : 'Ir a pagar y calificar',
               enabled: true,
-              onTap: () => context.go(RoutePaths.jobRating),
+              onTap: () => context.push(RoutePaths.jobRating),
             ),
           ],
         ),

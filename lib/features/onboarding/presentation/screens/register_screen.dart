@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/router/route_paths.dart';
+import '../../../../core/router/back_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/application/auth_controller.dart';
 import '../../../cerca/presentation/widgets/back_circle_button.dart';
@@ -85,7 +86,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 6),
                 child: Row(
                   children: [
-                    BackCircleButton(onTap: () => context.go(RoutePaths.login)),
+                    BackCircleButton(onTap: () => context.goBack(RoutePaths.login)),
                   ],
                 ),
               ),
@@ -155,7 +156,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       GoogleSignInButton(role: _role),
                       const SizedBox(height: 24),
                       InkWell(
-                        onTap: () => context.go(RoutePaths.login),
+                        onTap: () => context.goBack(RoutePaths.login),
                         child: Text(
                           '¿Ya tienes cuenta? Inicia sesión',
                           style: CercaText.sora(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.cercaPrimary),

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/router/route_paths.dart';
+import '../../../../core/router/back_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../cerca/application/cerca_controller.dart';
 import '../../../cerca/application/cerca_format.dart';
@@ -65,7 +66,7 @@ class _BiddingScreenState extends ConsumerState<BiddingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            CercaHeader(title: 'Ofertas recibidas', onBack: () => context.go(RoutePaths.home)),
+            CercaHeader(title: 'Ofertas recibidas', onBack: () => context.goBack(RoutePaths.home)),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),

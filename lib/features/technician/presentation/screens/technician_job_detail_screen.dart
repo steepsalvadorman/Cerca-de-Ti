@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/router/route_paths.dart';
+import '../../../../core/router/back_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../cerca/presentation/widgets/cerca_header.dart';
 import '../../../cerca/presentation/widgets/cerca_text_styles.dart';
@@ -102,7 +103,7 @@ class _TechnicianJobDetailScreenState extends ConsumerState<TechnicianJobDetailS
         body: SafeArea(
           child: Column(
             children: [
-              CercaHeader(title: 'Detalle del trabajo', onBack: () => context.go(RoutePaths.technicianJobs)),
+              CercaHeader(title: 'Detalle del trabajo', onBack: () => context.goBack(RoutePaths.technicianJobs)),
               Expanded(
                 child: Center(
                   child: Text('No se pudo cargar este trabajo.', style: CercaText.sora(fontSize: 14)),
@@ -122,7 +123,7 @@ class _TechnicianJobDetailScreenState extends ConsumerState<TechnicianJobDetailS
       body: SafeArea(
         child: Column(
           children: [
-            CercaHeader(title: 'Detalle del trabajo', onBack: () => context.go(RoutePaths.technicianJobs)),
+            CercaHeader(title: 'Detalle del trabajo', onBack: () => context.goBack(RoutePaths.technicianJobs)),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
@@ -230,7 +231,7 @@ class _TechnicianJobDetailScreenState extends ConsumerState<TechnicianJobDetailS
                 onTap: _advance,
               )
             else if (isAssignedToMe)
-              PrimaryActionButton(label: 'Chatear', onTap: () => context.go(RoutePaths.chat)),
+              PrimaryActionButton(label: 'Chatear', onTap: () => context.push(RoutePaths.chat)),
           ],
         ),
       ),

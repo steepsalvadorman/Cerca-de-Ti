@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/router/route_paths.dart';
+import '../../../../core/router/back_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../cerca/application/cerca_seed_data.dart';
 import '../../../cerca/presentation/widgets/back_circle_button.dart';
@@ -93,7 +94,7 @@ class _ModeChooserScreenState extends ConsumerState<ModeChooserScreen> {
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 6),
               child: Row(
                 children: [
-                  BackCircleButton(onTap: () => context.go(RoutePaths.home)),
+                  BackCircleButton(onTap: () => context.goBack(RoutePaths.home)),
                 ],
               ),
             ),

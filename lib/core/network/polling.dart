@@ -1,8 +1,11 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
+
 import 'api_exception.dart';
 
-/// Repeatedly calls [fetch] and emits each result, the stand-in for the
+/// Repeatedly calls [fetch] and emits each result — pausing while the app
+/// is in the background — the stand-in for the
 /// push/websocket support the backend does not have (chat, bidding
 /// offers and technician location all poll).
 ///
@@ -27,6 +30,9 @@ Stream<T> pollWithBackoff<T>(
   var backoff = every;
 
   while (true) {
+    // Nobody is looking while the app is in the background: stop hitting
+    // the server (and the battery) until it comes back to the foreground.
+    await _untilForeground();
     try {
       yield await fetch();
       backoff = every;
@@ -41,5 +47,25 @@ Stream<T> pollWithBackoff<T>(
       final next = backoff * 2;
       backoff = next > maxBackoff ? maxBackoff : next;
     }
+  }
+}
+
+/// Completes right away while the app is visible (or the binding isn't up,
+/// as in plain Dart tests), otherwise when it next resumes.
+Future<void> _untilForeground() async {
+  final AppLifecycleState? state;
+  try {
+    state = WidgetsBinding.instance.lifecycleState;
+  } catch (_) {
+    return;
+  }
+  if (state == null || state == AppLifecycleState.resumed || state == AppLifecycleState.inactive) return;
+
+  final resumed = Completer<void>();
+  final listener = AppLifecycleListener(onResume: resumed.complete);
+  try {
+    await resumed.future;
+  } finally {
+    listener.dispose();
   }
 }

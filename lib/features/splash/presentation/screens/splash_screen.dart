@@ -4,15 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/landing_route.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../auth/application/auth_controller.dart';
+import '../../../auth/domain/auth_session.dart';
 import '../../../cerca/presentation/widgets/cerca_logo_mark.dart';
 import '../../../cerca/presentation/widgets/cerca_text_styles.dart';
 
 /// Short Cerca brand intro. It advances once the ~2-second presentation
 /// finishes AND
 /// the stored session (if any) has been restored — whichever comes
-/// last — landing on `/welcome` (signed in) or `/login` (signed out).
+/// last — landing on the signed-in person's hub (see [landingRouteFor])
+/// or `/login` (signed out).
 ///
 /// The first frame deliberately matches the native launch splash (flat
 /// background, 98dp mark dead-center) so the hand-off from Android is
@@ -84,16 +87,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
   Future<void> _finishAnimation() async {
     _animationDone = true;
     final session = await ref.read(authControllerProvider.future);
-    _navigate(session != null);
+    await _navigate(session);
   }
 
-  void _navigate(bool signedIn) {
+  Future<void> _navigate(AuthSession? session) async {
     if (_navigated || !mounted) return;
     _navigated = true;
     for (final timer in _timers) {
       timer.cancel();
     }
-    context.go(signedIn ? RoutePaths.welcome : RoutePaths.login);
+    final target = session == null ? RoutePaths.login : await landingRouteFor(ref, session.user);
+    if (mounted) context.go(target);
   }
 
   Future<void> _goLogin() async {
@@ -106,12 +110,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
       _animationDone = true;
     }
     final authState = ref.read(authControllerProvider);
-    final session = authState.value;
     if (authState.isLoading) {
-      final resolved = await ref.read(authControllerProvider.future);
-      _navigate(resolved != null);
+      await _navigate(await ref.read(authControllerProvider.future));
     } else {
-      _navigate(session != null);
+      await _navigate(authState.value);
     }
   }
 

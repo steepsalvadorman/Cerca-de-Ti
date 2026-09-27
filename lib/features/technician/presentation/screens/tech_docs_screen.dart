@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_paths.dart';
+import '../../../../core/router/back_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/application/auth_controller.dart';
 import '../../../cerca/application/cerca_seed_data.dart';
@@ -68,13 +69,13 @@ class _TechDocsScreenState extends ConsumerState<TechDocsScreen> {
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
               child: Row(
                 children: [
-                  BackCircleButton(onTap: () => context.go(RoutePaths.techProfile)),
+                  BackCircleButton(onTap: () => context.goBack(RoutePaths.techProfile)),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text('Verifica tu perfil', style: CercaText.lora(fontSize: 19)),
                   ),
                   InkWell(
-                    onTap: () => context.go(RoutePaths.techProfile),
+                    onTap: () => context.goBack(RoutePaths.techProfile),
                     borderRadius: BorderRadius.circular(16),
                     child: MonogramAvatar(text: initials, size: 32, borderRadius: 16, fontSize: 12),
                   ),

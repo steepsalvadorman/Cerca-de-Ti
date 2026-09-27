@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/router/route_paths.dart';
+import '../../../../core/router/back_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../cerca/application/cerca_controller.dart';
 import '../../../cerca/presentation/widgets/cerca_header.dart';
@@ -73,7 +73,7 @@ class _JobRatingScreenState extends ConsumerState<JobRatingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            CercaHeader(title: 'Calificación final', onBack: () => context.go(RoutePaths.tracking)),
+            CercaHeader(title: 'Calificación final', onBack: () => context.goBack(RoutePaths.tracking)),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),

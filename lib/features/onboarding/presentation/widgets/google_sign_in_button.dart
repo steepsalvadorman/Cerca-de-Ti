@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/router/landing_route.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/application/auth_controller.dart';
@@ -40,6 +41,10 @@ class GoogleSignInButton extends ConsumerWidget {
 
     var result = ref.read(authControllerProvider);
     final error = result.error;
+    // A role only comes into play for a brand-new account (passed in from
+    // Register, or asked below); those get the Welcome intro. Returning
+    // accounts go straight to their hub.
+    var isNewAccount = role != null;
 
     // The account is new and nobody has said which half of the app it
     // belongs to. Ask, then make the one extra attempt.
@@ -50,12 +55,17 @@ class GoogleSignInButton extends ConsumerWidget {
       await controller.signInWithGoogle(role: chosen);
       if (!context.mounted) return;
       result = ref.read(authControllerProvider);
+      isNewAccount = true;
+    }
+
+    final session = result.value;
+    if (session != null) {
+      final target = isNewAccount ? RoutePaths.welcome : await landingRouteFor(ref, session.user);
+      if (context.mounted) context.go(target);
+      return;
     }
 
     result.whenOrNull(
-      data: (session) {
-        if (session != null) context.go(RoutePaths.welcome);
-      },
       error: (error, _) {
         final message =
             error is ApiException ? error.message : 'No se pudo ingresar con Google.';

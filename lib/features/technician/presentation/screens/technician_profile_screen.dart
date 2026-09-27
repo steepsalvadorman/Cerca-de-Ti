@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_paths.dart';
+import '../../../../core/router/back_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../cerca/application/cerca_controller.dart';
 import '../../../cerca/presentation/widgets/back_circle_button.dart';
@@ -93,7 +94,7 @@ class TechnicianProfileScreen extends ConsumerWidget {
                     children: [
                       Text('No se pudo cargar este perfil.', style: CercaText.sora(fontSize: 14)),
                       const SizedBox(height: 12),
-                      TextButton(onPressed: () => context.go(RoutePaths.home), child: const Text('Volver')),
+                      TextButton(onPressed: () => context.goBack(RoutePaths.home), child: const Text('Volver')),
                     ],
                   ),
           ),
@@ -134,7 +135,7 @@ class TechnicianProfileScreen extends ConsumerWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               BackCircleButton(
-                                onTap: () => context.go(RoutePaths.home),
+                                onTap: () => context.goBack(RoutePaths.home),
                                 color: Colors.white,
                                 iconColor: AppColors.cercaPrimary,
                                 border: false,
@@ -266,7 +267,7 @@ class TechnicianProfileScreen extends ConsumerWidget {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => isTeam ? context.go(RoutePaths.jobProjectQuote) : context.go(RoutePaths.jobDirect),
+                  onPressed: () => isTeam ? context.push(RoutePaths.jobProjectQuote) : context.push(RoutePaths.jobDirect),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.cercaPrimary,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),

@@ -44,7 +44,7 @@ class TechnicianJobsScreen extends ConsumerWidget {
 
   void _open(BuildContext context, WidgetRef ref, JobRequest job) {
     ref.read(jobSessionControllerProvider.notifier).setJobId(job.id);
-    context.go(RoutePaths.technicianJobDetail);
+    context.push(RoutePaths.technicianJobDetail);
   }
 
   @override

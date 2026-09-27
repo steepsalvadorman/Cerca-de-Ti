@@ -5,8 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/router/back_navigation.dart';
+import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/application/auth_controller.dart';
+import '../../../auth/domain/auth_user.dart';
 import '../../../cerca/application/cerca_format.dart';
 import '../../../cerca/presentation/widgets/back_circle_button.dart';
 import '../../../cerca/presentation/widgets/cerca_text_styles.dart';
@@ -30,6 +33,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _scrollController = ScrollController();
   bool _sending = false;
   int _lastMessageCount = 0;
+
+  /// Messages already shown in the thread while their POST is in flight,
+  /// so sending feels instant instead of waiting for two round trips.
+  final List<ChatMessage> _pending = [];
 
   @override
   void dispose() {
@@ -59,18 +66,40 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       );
       return;
     }
-    setState(() => _sending = true);
+    final pending = ChatMessage(
+      id: 'pending-${DateTime.now().microsecondsSinceEpoch}',
+      jobRequestId: jobId,
+      senderId: ref.read(authControllerProvider).value?.user.id ?? '',
+      senderRole: '',
+      text: trimmed,
+      createdAt: DateTime.now().toUtc().toIso8601String(),
+    );
+    setState(() {
+      _sending = true;
+      _pending.add(pending);
+    });
+    _textController.clear();
+    _scrollToBottom();
     try {
       await ref.read(chatRepositoryProvider).sendMessage(jobId, text: trimmed);
-      _textController.clear();
-      ref.invalidate(chatMessagesProvider(jobId));
-      _scrollToBottom();
+      // Swap the placeholder for the real message as soon as the thread
+      // reloads; if that reload is slow the next poll brings it anyway.
+      try {
+        await ref.refresh(chatMessagesProvider(jobId).future).timeout(const Duration(seconds: 8));
+      } catch (_) {}
     } catch (e) {
       if (!mounted) return;
+      // Give the text back so nothing typed is lost.
+      if (_textController.text.isEmpty) _textController.text = trimmed;
       final message = e is ApiException ? e.message : 'No se pudo enviar el mensaje.';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } finally {
-      if (mounted) setState(() => _sending = false);
+      if (mounted) {
+        setState(() {
+          _sending = false;
+          _pending.remove(pending);
+        });
+      }
     }
   }
 
@@ -79,7 +108,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final jobId = ref.watch(jobSessionControllerProvider);
     final job = ref.watch(activeJobControllerProvider).value;
     final providersPage = ref.watch(providersControllerProvider).value;
-    final currentUserId = ref.watch(authControllerProvider).value?.user.id;
+    final currentUser = ref.watch(authControllerProvider).value?.user;
+    final currentUserId = currentUser?.id;
+    // Reached with `go` there's nothing to pop: fall back to the screen the
+    // chat was opened from for this role.
+    final chatParent =
+        currentUser?.isTechnician == true ? RoutePaths.technicianJobDetail : RoutePaths.tracking;
     final messagesAsync = jobId == null ? null : ref.watch(chatMessagesProvider(jobId));
     final canWrite = job?.isChatWritable ?? false;
 
@@ -110,94 +144,99 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _scrollToBottom();
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.cercaBackground,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _ChatHeader(
-              providerName: providerName,
-              providerMono: providerMono,
-              status: status,
-              onBack: () => context.pop(),
-            ),
-            if (jobId != null && !canWrite)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.cercaBorder),
-                ),
-                child: Text(
-                  job?.isCompleted == true
-                      ? 'Trabajo finalizado · solo lectura'
-                      : 'Chat cerrado',
-                  textAlign: TextAlign.center,
-                  style: CercaText.sora(fontSize: 11.5, color: AppColors.cercaTextSecondary),
-                ),
+    return BackFallbackScope(
+      onFallback: () => context.go(chatParent),
+      child: Scaffold(
+        backgroundColor: AppColors.cercaBackground,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              _ChatHeader(
+                providerName: providerName,
+                providerMono: providerMono,
+                status: status,
+                onBack: () => context.goBack(chatParent),
               ),
-            Expanded(
-              child: jobId == null
-                  ? const _ChatEmptyState(message: 'No hay una conversación activa.')
-                  : messagesAsync!.when(
-                      loading: () => const Center(
-                        child: SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.cercaPrimary),
+              if (jobId != null && !canWrite)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.cercaBorder),
+                  ),
+                  child: Text(
+                    job?.isCompleted == true
+                        ? 'Trabajo finalizado · solo lectura'
+                        : 'Chat cerrado',
+                    textAlign: TextAlign.center,
+                    style: CercaText.sora(fontSize: 11.5, color: AppColors.cercaTextSecondary),
+                  ),
+                ),
+              Expanded(
+                child: jobId == null
+                    ? const _ChatEmptyState(message: 'No hay una conversación activa.')
+                    : messagesAsync!.when(
+                        loading: () => const Center(
+                          child: SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.cercaPrimary),
+                          ),
                         ),
-                      ),
-                      error: (error, _) {
-                        final message = error is ApiException ? error.message : 'No se pudieron cargar los mensajes.';
-                        return _ChatEmptyState(
-                          message: message,
-                          actionLabel: 'Reintentar',
-                          onAction: () => ref.invalidate(chatMessagesProvider(jobId)),
-                        );
-                      },
-                      data: (messages) {
-                        if (messages.isEmpty) {
-                          return const _ChatEmptyState(
-                            message: 'Coordina los detalles del trabajo aquí.\nEscribe el primer mensaje.',
+                        error: (error, _) {
+                          final message = error is ApiException ? error.message : 'No se pudieron cargar los mensajes.';
+                          return _ChatEmptyState(
+                            message: message,
+                            actionLabel: 'Reintentar',
+                            onAction: () => ref.invalidate(chatMessagesProvider(jobId)),
                           );
-                        }
-                        return ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                          itemCount: messages.length,
-                          itemBuilder: (context, index) {
-                            final message = messages[index];
-                            final isUser = message.senderId == currentUserId;
-                            final prev = index > 0 ? messages[index - 1] : null;
-                            final next = index < messages.length - 1 ? messages[index + 1] : null;
-                            final isFirstInGroup = prev?.senderId != message.senderId;
-                            final isLastInGroup = next?.senderId != message.senderId;
-
-                            return Padding(
-                              padding: EdgeInsets.only(top: isFirstInGroup ? 10 : 3),
-                              child: _ChatBubble(
-                                message: message,
-                                isUser: isUser,
-                                showTimestamp: isLastInGroup,
-                              ),
+                        },
+                        data: (loaded) {
+                          final messages = [...loaded, ..._pending];
+                          if (messages.isEmpty) {
+                            return const _ChatEmptyState(
+                              message: 'Coordina los detalles del trabajo aquí.\nEscribe el primer mensaje.',
                             );
-                          },
-                        );
-                      },
-                    ),
-            ),
-            if (jobId != null && canWrite)
-              _ChatComposer(
-                controller: _textController,
-                sending: _sending,
-                onSend: (text) => _send(jobId, text, canWrite: canWrite),
-                onQuickReply: (text) => _send(jobId, text, canWrite: canWrite),
+                          }
+                          return ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                            itemCount: messages.length,
+                            itemBuilder: (context, index) {
+                              final message = messages[index];
+                              final isUser = message.senderId == currentUserId;
+                              final prev = index > 0 ? messages[index - 1] : null;
+                              final next = index < messages.length - 1 ? messages[index + 1] : null;
+                              final isFirstInGroup = prev?.senderId != message.senderId;
+                              final isLastInGroup = next?.senderId != message.senderId;
+
+                              return Padding(
+                                padding: EdgeInsets.only(top: isFirstInGroup ? 10 : 3),
+                                child: _ChatBubble(
+                                  message: message,
+                                  isUser: isUser,
+                                  showTimestamp: isLastInGroup,
+                                  pending: _pending.contains(message),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
               ),
-          ],
+              if (jobId != null && canWrite)
+                _ChatComposer(
+                  controller: _textController,
+                  sending: _sending,
+                  onSend: (text) => _send(jobId, text, canWrite: canWrite),
+                  onQuickReply: (text) => _send(jobId, text, canWrite: canWrite),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -419,17 +458,19 @@ class _ChatBubble extends StatelessWidget {
     required this.message,
     required this.isUser,
     required this.showTimestamp,
+    this.pending = false,
   });
 
   final ChatMessage message;
   final bool isUser;
   final bool showTimestamp;
+  final bool pending;
 
   @override
   Widget build(BuildContext context) {
     final maxWidth = math.min(MediaQuery.sizeOf(context).width * 0.72, 280.0);
 
-    return Row(
+    final bubble = Row(
       mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
       children: [
         Flexible(
@@ -469,7 +510,7 @@ class _ChatBubble extends StatelessWidget {
                 if (showTimestamp) ...[
                   const SizedBox(height: 4),
                   Text(
-                    formatChatTime(message.createdAt),
+                    pending ? 'Enviando…' : formatChatTime(message.createdAt),
                     style: CercaText.sora(
                       fontSize: 10,
                       color: isUser ? Colors.white.withValues(alpha: 0.65) : AppColors.cercaTextMuted,
@@ -482,5 +523,6 @@ class _ChatBubble extends StatelessWidget {
         ),
       ],
     );
+    return pending ? Opacity(opacity: 0.7, child: bubble) : bubble;
   }
 }

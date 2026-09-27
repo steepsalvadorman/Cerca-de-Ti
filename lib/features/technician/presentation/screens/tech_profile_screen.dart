@@ -219,7 +219,7 @@ class _TechProfileScreenState extends ConsumerState<TechProfileScreen> {
                     ),
                     const SizedBox(height: 18),
                     InkWell(
-                      onTap: () => context.go(RoutePaths.techDocs),
+                      onTap: () => context.push(RoutePaths.techDocs),
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
@@ -254,7 +254,7 @@ class _TechProfileScreenState extends ConsumerState<TechProfileScreen> {
                       ),
                       const SizedBox(height: 10),
                       InkWell(
-                        onTap: () => context.go(RoutePaths.techDocs),
+                        onTap: () => context.push(RoutePaths.techDocs),
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
                           width: double.infinity,

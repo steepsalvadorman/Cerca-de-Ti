@@ -12,6 +12,7 @@ import '../../../cerca/application/cerca_controller.dart';
 import '../../../cerca/application/cerca_seed_data.dart';
 import '../../../cerca/application/cerca_state.dart';
 import '../../../cerca/domain/entities/category.dart';
+import '../../../cerca/presentation/widgets/back_circle_button.dart';
 import '../../../cerca/presentation/widgets/cerca_text_styles.dart';
 import '../../../cerca/presentation/widgets/monogram_avatar.dart';
 import '../../../cerca/presentation/widgets/verified_badge.dart';
@@ -306,7 +307,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 bottom: 20,
                 right: 20,
                 child: InkWell(
-                  onTap: () => context.go(RoutePaths.jobMode),
+                  onTap: () => context.push(RoutePaths.jobMode),
                   borderRadius: BorderRadius.circular(30),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
@@ -336,7 +337,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     } else {
       controller.selectTech(provider.id);
     }
-    context.go(RoutePaths.providerProfile);
+    context.push(RoutePaths.providerProfile);
   }
 
   Future<List<_Provider>> _loadAllProviders(bool isPuntual) async {
@@ -714,25 +715,58 @@ class _MapPreviewState extends State<_MapPreview> {
 
   LatLng? _userLocation;
 
+  /// Why there is no user pin yet, so the preview can offer the right
+  /// action instead of firing the system permission dialog on arrival.
+  _LocationBlock? _locationBlock;
+
   @override
   void initState() {
     super.initState();
-    _loadUserLocation();
+    // Only use location that's already allowed; asking is left to the
+    // "Usar mi ubicación" chip, where the person knows what it's for.
+    _loadUserLocation(askPermission: false);
+    // Coming back from system settings: pick up a newly granted permission
+    // or switched-on location without needing another tap.
+    _lifecycle = AppLifecycleListener(
+      onResume: () {
+        if (_locationBlock != null) _loadUserLocation(askPermission: false);
+      },
+    );
   }
 
-  Future<void> _loadUserLocation() async {
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadUserLocation({required bool askPermission}) async {
     try {
-      if (!await Geolocator.isLocationServiceEnabled()) return;
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        if (askPermission) await Geolocator.openLocationSettings();
+        if (mounted) setState(() => _locationBlock = _LocationBlock.serviceOff);
         return;
       }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied && askPermission) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.deniedForever) {
+        if (askPermission) await Geolocator.openAppSettings();
+        if (mounted) setState(() => _locationBlock = _LocationBlock.blocked);
+        return;
+      }
+      if (permission == LocationPermission.denied) {
+        if (mounted) setState(() => _locationBlock = _LocationBlock.needsPermission);
+        return;
+      }
+      if (mounted) setState(() => _locationBlock = null);
+      // Neighbourhood-level accuracy is plenty for "0.6 km de ti", and unlike
+      // `high` it doesn't trigger Google's extra "Location Accuracy" prompt.
       final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
       );
       if (mounted) {
         setState(() => _userLocation = LatLng(position.latitude, position.longitude));
@@ -749,103 +783,263 @@ class _MapPreviewState extends State<_MapPreview> {
     return _teamLocations[provider.id] ?? _limaCenter;
   }
 
+  void _openFullMap() {
+    // Root navigator: full screen, above the Inicio/Cuenta bottom bar.
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute<void>(
+        builder: (_) => _FullMapScreen(
+          providers: widget.providers,
+          userLocation: _userLocation,
+          locate: _providerLocation,
+          onSelect: widget.onSelect,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // The preview doesn't pan or zoom: inside the page's scroll view a drag
+    // on it has to scroll the page, not move the map. Pins stay tappable and
+    // the full, interactive map is one tap away.
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(
         height: 180,
-        child: FlutterMap(
-          options: const MapOptions(
-            initialCenter: _limaCenter,
-            initialZoom: 11.5,
-            minZoom: 9,
-            maxZoom: 18,
-          ),
+        child: Stack(
           children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.salvador.cerca',
+            _ProvidersMap(
+              providers: widget.providers,
+              userLocation: _userLocation,
+              locate: _providerLocation,
+              onSelect: widget.onSelect,
+              interactive: false,
+              onTapMap: _openFullMap,
             ),
-            MarkerLayer(
-              markers: [
-                if (_userLocation != null)
-                  Marker(
-                    point: _userLocation!,
-                    width: 42,
-                    height: 42,
-                    child: Semantics(
-                      label: 'Tu ubicación',
-                      child: Container(
-                        margin: const EdgeInsets.all(11),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Material(
+                color: Colors.white,
+                shape: const CircleBorder(),
+                elevation: 2,
+                child: IconButton(
+                  onPressed: _openFullMap,
+                  tooltip: 'Ver mapa completo',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.open_in_full_rounded, size: 18, color: AppColors.cercaPrimary),
+                ),
+              ),
+            ),
+            if (_locationBlock case final block?)
+              Positioned(
+                left: 8,
+                bottom: 8,
+                child: _UseLocationChip(
+                  block: block,
+                  onTap: () => _loadUserLocation(askPermission: true),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+enum _LocationBlock { needsPermission, blocked, serviceOff }
+
+class _UseLocationChip extends StatelessWidget {
+  const _UseLocationChip({required this.block, required this.onTap});
+
+  final _LocationBlock block;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = switch (block) {
+      _LocationBlock.needsPermission => 'Usar mi ubicación',
+      _LocationBlock.blocked => 'Permitir ubicación en ajustes',
+      _LocationBlock.serviceOff => 'Activar ubicación',
+    };
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      elevation: 2,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.my_location_rounded, size: 16, color: AppColors.cercaPrimary),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: CercaText.sora(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.cercaPrimary),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProvidersMap extends StatelessWidget {
+  const _ProvidersMap({
+    required this.providers,
+    required this.userLocation,
+    required this.locate,
+    required this.onSelect,
+    required this.interactive,
+    this.onTapMap,
+  });
+
+  final List<_Provider> providers;
+  final LatLng? userLocation;
+  final LatLng Function(_Provider) locate;
+  final void Function(_Provider) onSelect;
+  final bool interactive;
+  final VoidCallback? onTapMap;
+
+  @override
+  Widget build(BuildContext context) {
+    return FlutterMap(
+      options: MapOptions(
+        initialCenter: _MapPreviewState._limaCenter,
+        initialZoom: 11.5,
+        minZoom: 9,
+        maxZoom: 18,
+        interactionOptions: InteractionOptions(
+          flags: interactive ? InteractiveFlag.all & ~InteractiveFlag.rotate : InteractiveFlag.none,
+        ),
+        onTap: onTapMap == null ? null : (_, _) => onTapMap!(),
+      ),
+      children: [
+        TileLayer(
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          userAgentPackageName: 'com.salvador.cerca',
+        ),
+        MarkerLayer(
+          markers: [
+            if (userLocation != null)
+              Marker(
+                point: userLocation!,
+                width: 42,
+                height: 42,
+                child: Semantics(
+                  label: 'Tu ubicación',
+                  child: Container(
+                    margin: const EdgeInsets.all(11),
+                    decoration: BoxDecoration(
+                      color: AppColors.cercaMapPin,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.25),
+                          blurRadius: 7,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            for (final provider in providers)
+              Marker(
+                point: locate(provider),
+                width: 42,
+                height: 46,
+                child: InkWell(
+                  onTap: () => onSelect(provider),
+                  customBorder: const CircleBorder(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: AppColors.cercaMapPin,
+                          color: AppColors.cercaPrimary,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
+                          border: Border.all(color: Colors.white, width: 2),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.25),
+                              color: Colors.black.withValues(alpha: 0.28),
                               blurRadius: 7,
+                              offset: const Offset(0, 3),
                             ),
                           ],
                         ),
-                      ),
-                    ),
-                  ),
-                for (final provider in widget.providers)
-                  Marker(
-                    point: _providerLocation(provider),
-                    width: 42,
-                    height: 46,
-                    child: InkWell(
-                      onTap: () => widget.onSelect(provider),
-                      customBorder: const CircleBorder(),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 34,
-                            height: 34,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: AppColors.cercaPrimary,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.28),
-                                  blurRadius: 7,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              provider.mono,
-                              style: CercaText.sora(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
+                        child: Text(
+                          provider.mono,
+                          style: CercaText.sora(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
                           ),
-                          Container(
-                            width: 3,
-                            height: 8,
-                            color: AppColors.cercaPrimary,
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                      Container(
+                        width: 3,
+                        height: 8,
+                        color: AppColors.cercaPrimary,
+                      ),
+                    ],
                   ),
-              ],
-            ),
-            RichAttributionWidget(
-              attributions: const [
-                TextSourceAttribution('OpenStreetMap contributors'),
-              ],
-            ),
+                ),
+              ),
           ],
         ),
+        RichAttributionWidget(
+          attributions: const [
+            TextSourceAttribution('OpenStreetMap contributors'),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _FullMapScreen extends StatelessWidget {
+  const _FullMapScreen({
+    required this.providers,
+    required this.userLocation,
+    required this.locate,
+    required this.onSelect,
+  });
+
+  final List<_Provider> providers;
+  final LatLng? userLocation;
+  final LatLng Function(_Provider) locate;
+  final void Function(_Provider) onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          _ProvidersMap(
+            providers: providers,
+            userLocation: userLocation,
+            locate: locate,
+            interactive: true,
+            onSelect: (provider) {
+              Navigator.of(context).pop();
+              onSelect(provider);
+            },
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: BackCircleButton(onTap: () => Navigator.of(context).pop()),
+            ),
+          ),
+        ],
       ),
     );
   }

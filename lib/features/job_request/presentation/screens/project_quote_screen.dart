@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/router/route_paths.dart';
+import '../../../../core/router/back_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../cerca/application/cerca_controller.dart';
 import '../../../cerca/application/cerca_format.dart';
@@ -70,7 +71,7 @@ class _ProjectQuoteScreenState extends ConsumerState<ProjectQuoteScreen> {
           child: Center(
             child: providersAsync.isLoading
                 ? const CircularProgressIndicator()
-                : TextButton(onPressed: () => context.go(RoutePaths.home), child: const Text('Volver')),
+                : TextButton(onPressed: () => context.goBack(RoutePaths.home), child: const Text('Volver')),
           ),
         ),
       );
@@ -85,7 +86,7 @@ class _ProjectQuoteScreenState extends ConsumerState<ProjectQuoteScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            CercaHeader(title: 'Cotización de proyecto', onBack: () => context.go(RoutePaths.providerProfile)),
+            CercaHeader(title: 'Cotización de proyecto', onBack: () => context.goBack(RoutePaths.providerProfile)),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),

@@ -25,6 +25,7 @@ import '../../features/tracking/presentation/screens/tracking_screen.dart';
 import '../../features/welcome/presentation/screens/welcome_screen.dart';
 import 'app_shell.dart';
 import 'route_paths.dart';
+import 'back_navigation.dart';
 
 part 'app_router.g.dart';
 
@@ -111,7 +112,7 @@ GoRouter appRouter(Ref ref) {
       ),
       GoRoute(
         path: RoutePaths.register,
-        builder: (context, state) => const RegisterScreen(),
+        builder: (context, state) => _withParent(RoutePaths.login, const RegisterScreen()),
       ),
       GoRoute(
         path: RoutePaths.welcome,
@@ -119,15 +120,15 @@ GoRouter appRouter(Ref ref) {
       ),
       GoRoute(
         path: RoutePaths.techDocs,
-        builder: (context, state) => const TechDocsScreen(),
+        builder: (context, state) => _withParent(RoutePaths.techProfile, const TechDocsScreen()),
       ),
       GoRoute(
         path: RoutePaths.technicianJobDetail,
-        builder: (context, state) => const TechnicianJobDetailScreen(),
+        builder: (context, state) => _withParent(RoutePaths.technicianJobs, const TechnicianJobDetailScreen()),
       ),
       GoRoute(
         path: RoutePaths.providerProfile,
-        builder: (context, state) => const TechnicianProfileScreen(),
+        builder: (context, state) => _withParent(RoutePaths.home, const TechnicianProfileScreen()),
       ),
       // Client hub: Inicio / Cuenta share one persistent bottom nav instead
       // of the header-avatar shortcut being the only way between them.
@@ -168,19 +169,19 @@ GoRouter appRouter(Ref ref) {
       ),
       GoRoute(
         path: RoutePaths.jobMode,
-        builder: (context, state) => const ModeChooserScreen(),
+        builder: (context, state) => _withParent(RoutePaths.home, const ModeChooserScreen()),
       ),
       GoRoute(
         path: RoutePaths.jobDirect,
-        builder: (context, state) => const DirectQuoteScreen(),
+        builder: (context, state) => _withParent(RoutePaths.providerProfile, const DirectQuoteScreen()),
       ),
       GoRoute(
         path: RoutePaths.jobBidding,
-        builder: (context, state) => const BiddingScreen(),
+        builder: (context, state) => _withParent(RoutePaths.home, const BiddingScreen()),
       ),
       GoRoute(
         path: RoutePaths.jobProjectQuote,
-        builder: (context, state) => const ProjectQuoteScreen(),
+        builder: (context, state) => _withParent(RoutePaths.providerProfile, const ProjectQuoteScreen()),
       ),
       GoRoute(
         path: RoutePaths.jobFee,
@@ -192,13 +193,22 @@ GoRouter appRouter(Ref ref) {
       ),
       GoRoute(
         path: RoutePaths.tracking,
-        builder: (context, state) => const TrackingScreen(),
+        builder: (context, state) => _withParent(RoutePaths.home, const TrackingScreen()),
       ),
       GoRoute(
         path: RoutePaths.jobRating,
-        builder: (context, state) => const JobRatingScreen(),
+        builder: (context, state) => _withParent(RoutePaths.tracking, const JobRatingScreen()),
       ),
     ],
+  );
+}
+
+/// Screens outside the tab shells: Android back returns to the previous
+/// screen when there is one, otherwise to [parent] instead of closing the
+/// app. (The fee and chat screens pick their parent from state themselves.)
+Widget _withParent(String parent, Widget screen) {
+  return Builder(
+    builder: (context) => BackFallbackScope(onFallback: () => context.go(parent), child: screen),
   );
 }
 

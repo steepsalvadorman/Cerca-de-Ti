@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/router/landing_route.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/application/auth_controller.dart';
+import '../../../auth/domain/auth_user.dart';
 import '../../../cerca/presentation/widgets/cerca_logo_mark.dart';
 import '../../../cerca/presentation/widgets/cerca_text_styles.dart';
 import '../widgets/google_sign_in_button.dart';
@@ -30,6 +32,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  Future<void> _goToLanding(AuthUser user) async {
+    final target = await landingRouteFor(ref, user);
+    if (mounted) context.go(target);
+  }
+
   Future<void> _doLogin(bool isLoading) async {
     if (isLoading) return;
     final email = _emailController.text.trim();
@@ -49,7 +56,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final result = ref.read(authControllerProvider);
     result.whenOrNull(
       data: (session) {
-        if (session != null) context.go(RoutePaths.welcome);
+        if (session != null) _goToLanding(session.user);
       },
       error: (error, _) {
         final message = error is ApiException
@@ -66,6 +73,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
     final isLoading = authState.isLoading;
+    // With the keyboard up the form gets only the space above it; the
+    // legal line and the register link would squeeze "Ingresar" out of view.
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return Scaffold(
       body: Container(
@@ -303,30 +313,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                 ),
-                Text(
-                  'Al continuar aceptas nuestros términos y el uso de tu ubicación para mostrarte técnicos cercanos.',
-                  textAlign: TextAlign.center,
-                  style: CercaText.sora(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.cercaTextMuted,
-                    height: 1.5,
+                if (!keyboardOpen) ...[
+                  Text(
+                    'Al continuar aceptas nuestros términos y el uso de tu ubicación para mostrarte técnicos cercanos.',
+                    textAlign: TextAlign.center,
+                    style: CercaText.sora(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.cercaTextMuted,
+                      height: 1.5,
+                    ),
                   ),
-                ),
-                InkWell(
-                  onTap: () => context.go(RoutePaths.register),
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 14),
-                    child: Text(
-                      '¿Eres nuevo? Crea tu cuenta',
-                      style: CercaText.sora(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.cercaPrimary,
+                  InkWell(
+                    onTap: () => context.push(RoutePaths.register),
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 14),
+                      child: Text(
+                        '¿Eres nuevo? Crea tu cuenta',
+                        style: CercaText.sora(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.cercaPrimary,
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           ),

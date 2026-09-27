@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/router/route_paths.dart';
+import '../../../../core/router/back_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../cerca/application/cerca_controller.dart';
 import '../../../cerca/application/cerca_format.dart';
@@ -72,80 +73,83 @@ class _AppFeeScreenState extends ConsumerState<AppFeeScreen> {
       }
     }
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            CercaHeader(title: 'Pago del servicio Cerca', onBack: goBack),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.cercaSurfaceTint,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            fee.title.toUpperCase(),
-                            style: CercaText.sora(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.cercaPrimary),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(formatSoles(feeAmount), style: CercaText.lora(fontSize: 32)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Text(fee.desc, style: CercaText.sora(fontSize: 12.5, color: AppColors.cercaTextSecondary, height: 1.6)),
-                    const SizedBox(height: 18),
-                    Text('Método de pago', style: CercaText.sora(fontSize: 13.5, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        for (final method in PaymentMethodKind.values) ...[
-                          Expanded(
-                            child: _PaymentChip(
-                              label: _paymentLabel(method),
-                              active: state.payment == method,
-                              onTap: () => controller.setPayment(method),
+    return BackFallbackScope(
+      onFallback: goBack,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Column(
+            children: [
+              CercaHeader(title: 'Pago del servicio Cerca', onBack: goBack),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.cercaSurfaceTint,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              fee.title.toUpperCase(),
+                              style: CercaText.sora(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.cercaPrimary),
                             ),
-                          ),
-                          if (method != PaymentMethodKind.values.last) const SizedBox(width: 8),
+                            const SizedBox(height: 6),
+                            Text(formatSoles(feeAmount), style: CercaText.lora(fontSize: 32)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Text(fee.desc, style: CercaText.sora(fontSize: 12.5, color: AppColors.cercaTextSecondary, height: 1.6)),
+                      const SizedBox(height: 18),
+                      Text('Método de pago', style: CercaText.sora(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          for (final method in PaymentMethodKind.values) ...[
+                            Expanded(
+                              child: _PaymentChip(
+                                label: _paymentLabel(method),
+                                active: state.payment == method,
+                                onTap: () => controller.setPayment(method),
+                              ),
+                            ),
+                            if (method != PaymentMethodKind.values.last) const SizedBox(width: 8),
+                          ],
                         ],
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: AppColors.cercaSuccessBg,
-                        border: Border.all(color: AppColors.cercaSuccessBorder),
-                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Text(
-                        'El costo del trabajo (mano de obra, materiales y movilización si aplica) se acuerda y se paga siempre directo con el técnico o equipo. Esta tarifa es solo por el servicio de Cerca.',
-                        style: CercaText.sora(fontSize: 11.5, color: AppColors.cercaSuccessText, height: 1.5),
+                      const SizedBox(height: 16),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.cercaSuccessBg,
+                          border: Border.all(color: AppColors.cercaSuccessBorder),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'El costo del trabajo (mano de obra, materiales y movilización si aplica) se acuerda y se paga siempre directo con el técnico o equipo. Esta tarifa es solo por el servicio de Cerca.',
+                          style: CercaText.sora(fontSize: 11.5, color: AppColors.cercaSuccessText, height: 1.5),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            PrimaryActionButton(
-              label: _paying ? 'Procesando…' : 'Pagar ${formatSoles(feeAmount)} y contactar',
-              enabled: !_paying,
-              onTap: () => _pay(_paymentLabel(state.payment)),
-            ),
-          ],
+              PrimaryActionButton(
+                label: _paying ? 'Procesando…' : 'Pagar ${formatSoles(feeAmount)} y contactar',
+                enabled: !_paying,
+                onTap: () => _pay(_paymentLabel(state.payment)),
+              ),
+            ],
+          ),
         ),
       ),
     );
