@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::features::chat::domain::ChatMessage;
+use crate::features::chat::domain::{ChatMessage, Conversation};
 use crate::shared::{validation, AppError};
 
 #[derive(Serialize)]
@@ -23,6 +23,37 @@ impl From<ChatMessage> for ChatMessageResponse {
             sender_role: m.sender_role,
             text: m.text,
             created_at: m.created_at.to_rfc3339(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct ConversationResponse {
+    pub job_request_id: Uuid,
+    pub job_title: Option<String>,
+    pub job_status: String,
+    pub counterpart_role: String,
+    pub counterpart_name: String,
+    pub last_message_text: Option<String>,
+    pub last_message_at: Option<String>,
+    pub last_message_sender_id: Option<Uuid>,
+    pub unread_count: i64,
+    pub updated_at: String,
+}
+
+impl From<Conversation> for ConversationResponse {
+    fn from(c: Conversation) -> Self {
+        Self {
+            job_request_id: c.job_request_id,
+            job_title: c.job_title,
+            job_status: c.job_status,
+            counterpart_role: c.counterpart_role,
+            counterpart_name: c.counterpart_name,
+            last_message_text: c.last_message_text,
+            last_message_at: c.last_message_at.map(|at| at.to_rfc3339()),
+            last_message_sender_id: c.last_message_sender_id,
+            unread_count: c.unread_count,
+            updated_at: c.updated_at.to_rfc3339(),
         }
     }
 }

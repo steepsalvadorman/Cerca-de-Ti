@@ -40,7 +40,7 @@ final class TechProfileControllerProvider
 }
 
 String _$techProfileControllerHash() =>
-    r'c6cac8db2f3fa3d2d67e7fb09cc96cf200ba4b8b';
+    r'72cbdd47a254297f600c4b20c2d9dcb52f6f016e';
 
 /// The signed-in technician's own profile (`GET/POST /technician/profile`).
 /// `null` means no profile has been saved yet.

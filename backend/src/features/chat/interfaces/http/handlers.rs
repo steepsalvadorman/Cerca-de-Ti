@@ -4,11 +4,13 @@ use axum::Json;
 use uuid::Uuid;
 
 use crate::features::auth::interfaces::http::middleware::CurrentUser;
-use crate::features::chat::application::{GetMessagesUseCase, SendMessageInput, SendMessageUseCase};
+use crate::features::chat::application::{
+    GetConversationsUseCase, GetMessagesUseCase, SendMessageInput, SendMessageUseCase,
+};
 use crate::shared::AppError;
 use crate::state::AppState;
 
-use super::dto::{ChatMessageResponse, SendMessageRequest};
+use super::dto::{ChatMessageResponse, ConversationResponse, SendMessageRequest};
 
 pub async fn send_message(
     State(state): State<AppState>,
@@ -50,4 +52,15 @@ pub async fn get_messages(
     let messages = use_case.execute(job_request_id, current_user.user_id).await?;
 
     Ok(Json(messages.into_iter().map(Into::into).collect()))
+}
+
+pub async fn get_conversations(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+) -> Result<Json<Vec<ConversationResponse>>, AppError> {
+    let conversations = GetConversationsUseCase::new(state.chat_repository.clone())
+        .execute(current_user.user_id)
+        .await?;
+
+    Ok(Json(conversations.into_iter().map(Into::into).collect()))
 }

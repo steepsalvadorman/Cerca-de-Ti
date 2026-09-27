@@ -19,10 +19,16 @@ import '../../../job_request/application/job_session_controller.dart';
 import '../../../job_request/domain/job_request.dart';
 import '../../../technician/application/providers_controller.dart';
 import '../../application/chat_controller.dart';
+import '../../domain/chat_conversation.dart';
 import '../../domain/chat_message.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
-  const ChatScreen({super.key});
+  const ChatScreen({super.key, this.jobId});
+
+  /// The job whose thread to show. Opened from the inbox this is always
+  /// set; the older entry points (tracking, job detail) may leave it null
+  /// and rely on the job in the shared session instead.
+  final String? jobId;
 
   @override
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
@@ -105,21 +111,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final jobId = ref.watch(jobSessionControllerProvider);
-    final job = ref.watch(activeJobControllerProvider).value;
+    final sessionJobId = ref.watch(jobSessionControllerProvider);
+    final jobId = widget.jobId ?? sessionJobId;
+    final sessionJob = ref.watch(activeJobControllerProvider).value;
+    // The session job only describes this thread if it is the same job.
+    final job = sessionJob?.id == jobId ? sessionJob : null;
+    ChatConversation? conversation;
+    for (final c in ref.watch(chatConversationsProvider).value ?? const <ChatConversation>[]) {
+      if (c.jobRequestId == jobId) conversation = c;
+    }
     final providersPage = ref.watch(providersControllerProvider).value;
     final currentUser = ref.watch(authControllerProvider).value?.user;
     final currentUserId = currentUser?.id;
-    // Reached with `go` there's nothing to pop: fall back to the screen the
-    // chat was opened from for this role.
-    final chatParent =
-        currentUser?.isTechnician == true ? RoutePaths.technicianJobDetail : RoutePaths.tracking;
+    final isTechnician = currentUser?.isTechnician == true;
+    // Reached with `go` there's nothing to pop: fall back to this role's inbox.
+    final chatParent = isTechnician ? RoutePaths.technicianChats : RoutePaths.clientChats;
     final messagesAsync = jobId == null ? null : ref.watch(chatMessagesProvider(jobId));
-    final canWrite = job?.isChatWritable ?? false;
+    final jobStatus = conversation?.jobStatus ?? job?.status;
+    final canWrite = conversation?.isWritable ?? job?.isChatWritable ?? false;
 
-    String providerName = '';
-    String providerMono = '?';
-    if (providersPage != null && job != null) {
+    // The inbox knows who is on the other side for both roles; the
+    // providers list is only a fallback, and only names the technician.
+    String providerName = conversation?.counterpartName ?? '';
+    String providerMono = conversation?.counterpartMono ?? '?';
+    if (conversation == null && !isTechnician && providersPage != null && job != null) {
       if (job.technicianProfileId != null) {
         for (final t in providersPage.technicians) {
           if (t.id == job.technicianProfileId) {
@@ -137,7 +152,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     }
 
-    final status = _ChatStatus.fromJob(job);
+    final status = _ChatStatus.fromStatus(jobStatus);
     final messageCount = messagesAsync?.value?.length ?? 0;
     if (messageCount != _lastMessageCount && messageCount > 0) {
       _lastMessageCount = messageCount;
@@ -169,7 +184,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     border: Border.all(color: AppColors.cercaBorder),
                   ),
                   child: Text(
-                    job?.isCompleted == true
+                    jobStatus == 'completed'
                         ? 'Trabajo finalizado · solo lectura'
                         : 'Chat cerrado',
                     textAlign: TextAlign.center,
@@ -232,6 +247,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 _ChatComposer(
                   controller: _textController,
                   sending: _sending,
+                  quickReplies: isTechnician ? _ChatComposer.technicianReplies : _ChatComposer.clientReplies,
                   onSend: (text) => _send(jobId, text, canWrite: canWrite),
                   onQuickReply: (text) => _send(jobId, text, canWrite: canWrite),
                 ),
@@ -328,16 +344,19 @@ class _ChatComposer extends StatelessWidget {
   const _ChatComposer({
     required this.controller,
     required this.sending,
+    required this.quickReplies,
     required this.onSend,
     required this.onQuickReply,
   });
 
   final TextEditingController controller;
   final bool sending;
+  final List<String> quickReplies;
   final ValueChanged<String> onSend;
   final ValueChanged<String> onQuickReply;
 
-  static const _quickReplies = ['¿Cuánto falta?', 'Gracias'];
+  static const clientReplies = ['¿Cuánto falta?', 'Gracias'];
+  static const technicianReplies = ['Voy en camino', 'Ya llegué', 'Gracias'];
 
   @override
   Widget build(BuildContext context) {
@@ -356,10 +375,10 @@ class _ChatComposer extends StatelessWidget {
             height: 32,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: _quickReplies.length,
+              itemCount: quickReplies.length,
               separatorBuilder: (_, _) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
-                final label = _quickReplies[index];
+                final label = quickReplies[index];
                 return ActionChip(
                   label: Text(label, style: CercaText.sora(fontSize: 11.5, color: AppColors.cercaTextSecondary)),
                   backgroundColor: AppColors.cercaBackground,
@@ -443,8 +462,8 @@ class _ChatStatus {
   final String label;
   final Color textColor;
 
-  factory _ChatStatus.fromJob(JobRequest? job) {
-    return switch (job?.status) {
+  factory _ChatStatus.fromStatus(String? status) {
+    return switch (status) {
       'active' => const _ChatStatus(label: 'En camino', textColor: AppColors.cercaSuccessText),
       'completed' => const _ChatStatus(label: 'Finalizado', textColor: AppColors.cercaTextMuted),
       'cancelled' => const _ChatStatus(label: 'Cancelado', textColor: AppColors.cercaWarnTextStrong),

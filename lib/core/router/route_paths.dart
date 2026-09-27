@@ -21,7 +21,13 @@ class RoutePaths {
   static const String jobProjectQuote = '/job/project-quote';
   static const String jobFee = '/job/fee';
   static const String chat = '/chat';
+  static const String clientChats = '/chats';
+  static const String technicianChats = '/tech/chats';
   static const String tracking = '/tracking';
   static const String jobRating = '/job/rating';
   static const String clientAccount = '/account';
+
+  /// The thread of one job; `?job=` keeps it reachable without relying on
+  /// whichever job happens to be in the shared session.
+  static String chatFor(String jobId) => '$chat?job=${Uri.encodeQueryComponent(jobId)}';
 }

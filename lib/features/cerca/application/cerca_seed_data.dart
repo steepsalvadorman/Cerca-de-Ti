@@ -1,5 +1,4 @@
 import '../domain/entities/category.dart';
-import '../domain/entities/chat_message.dart';
 import '../domain/entities/client_address.dart';
 import '../domain/entities/client_history_entry.dart';
 import '../domain/entities/doc_requirement.dart';
@@ -92,13 +91,6 @@ class CercaSeedData {
     JobOffer(id: 2, name: 'Felipe Correa', mono: 'FC', oficio: 'Gasfitero', rating: 4.6, price: 110, eta: 'Mañana, 09:00', verified: true),
     JobOffer(id: 3, name: 'Ana Fuentes', mono: 'AF', oficio: 'Técnica multioficio', rating: 4.8, price: 140, eta: 'Hoy, 18:30', verified: true),
     JobOffer(id: 4, name: 'Diego Muñoz', mono: 'DM', oficio: 'Gasfitero', rating: 4.5, price: 95, eta: 'Mañana, 14:00', verified: false),
-  ];
-
-  static const List<ChatMessageEntry> chatMessages = [
-    ChatMessageEntry(from: ChatSender.technician, text: 'Hola, voy en camino, llego en unos 20 minutos.'),
-    ChatMessageEntry(from: ChatSender.user, text: 'Perfecto, te espero. La llave está con el conserje.'),
-    ChatMessageEntry(from: ChatSender.technician, text: 'Genial, gracias por avisar.'),
-    ChatMessageEntry(from: ChatSender.user, text: 'De nada, nos vemos pronto.'),
   ];
 
   static const List<DocRequirement> docRequirements = [

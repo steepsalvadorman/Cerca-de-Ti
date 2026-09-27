@@ -99,7 +99,7 @@ final class SelectedCategoryProvider
   }
 }
 
-String _$selectedCategoryHash() => r'1c51a2bcf030a3b9b132e770f1c17a8c9c8e4aa8';
+String _$selectedCategoryHash() => r'88fe1ecb073864527f62b7ba1b8ffc0300ca05bd';
 
 /// Which trade the home screen is filtered to, or `null` for all of
 /// them. Its id matches `technician_profiles.categories` in the backend

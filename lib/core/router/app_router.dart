@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../features/auth/application/auth_controller.dart';
 import '../../features/auth/domain/auth_user.dart';
 import '../../features/chat/presentation/screens/chat_screen.dart';
+import '../../features/chat/presentation/screens/chats_screen.dart';
 import '../../features/client_account/presentation/screens/client_account_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/job_request/presentation/screens/bidding_screen.dart';
@@ -36,9 +37,11 @@ const _publicRoutes = {RoutePaths.splash, RoutePaths.login, RoutePaths.register}
 // Routes that only make sense for a client account. A technician account
 // hitting one of these (e.g. a stale deep link) is bounced to their job inbox.
 // `chat` is deliberately excluded: both a client and the technician assigned
-// to a job need it, keyed off the same shared job session.
+// to a job need it. Each role has its own inbox path, since the two shells
+// cannot share one.
 const _clientOnlyRoutes = {
   RoutePaths.home,
+  RoutePaths.clientChats,
   RoutePaths.providerProfile,
   RoutePaths.jobMode,
   RoutePaths.jobDirect,
@@ -56,6 +59,7 @@ const _technicianOnlyRoutes = {
   RoutePaths.techProfile,
   RoutePaths.technicianJobs,
   RoutePaths.technicianJobDetail,
+  RoutePaths.technicianChats,
 };
 
 /// Bridges a Riverpod provider to the `Listenable` GoRouter wants, so the
@@ -130,13 +134,19 @@ GoRouter appRouter(Ref ref) {
         path: RoutePaths.providerProfile,
         builder: (context, state) => _withParent(RoutePaths.home, const TechnicianProfileScreen()),
       ),
-      // Client hub: Inicio / Cuenta share one persistent bottom nav instead
+      // Client hub: Inicio / Mensajes / Cuenta share one persistent bottom nav instead
       // of the header-avatar shortcut being the only way between them.
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => AppShell(
           navigationShell: shell,
           tabs: const [
             AppShellTab(label: 'Inicio', icon: Icons.home_outlined, activeIcon: Icons.home_rounded),
+            AppShellTab(
+              label: 'Mensajes',
+              icon: Icons.chat_bubble_outline_rounded,
+              activeIcon: Icons.chat_bubble_rounded,
+              showsUnreadChats: true,
+            ),
             AppShellTab(label: 'Cuenta', icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded),
           ],
         ),
@@ -145,22 +155,34 @@ GoRouter appRouter(Ref ref) {
             GoRoute(path: RoutePaths.home, builder: (context, state) => const HomeScreen()),
           ]),
           StatefulShellBranch(routes: [
+            GoRoute(path: RoutePaths.clientChats, builder: (context, state) => const ChatsScreen()),
+          ]),
+          StatefulShellBranch(routes: [
             GoRoute(path: RoutePaths.clientAccount, builder: (context, state) => const ClientAccountScreen()),
           ]),
         ],
       ),
-      // Technician hub: Trabajos / Perfil, same pattern.
+      // Technician hub: Trabajos / Mensajes / Perfil, same pattern.
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => AppShell(
           navigationShell: shell,
           tabs: const [
             AppShellTab(label: 'Trabajos', icon: Icons.work_outline_rounded, activeIcon: Icons.work_rounded),
+            AppShellTab(
+              label: 'Mensajes',
+              icon: Icons.chat_bubble_outline_rounded,
+              activeIcon: Icons.chat_bubble_rounded,
+              showsUnreadChats: true,
+            ),
             AppShellTab(label: 'Perfil', icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded),
           ],
         ),
         branches: [
           StatefulShellBranch(routes: [
             GoRoute(path: RoutePaths.technicianJobs, builder: (context, state) => const TechnicianJobsScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: RoutePaths.technicianChats, builder: (context, state) => const ChatsScreen()),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(path: RoutePaths.techProfile, builder: (context, state) => const TechProfileScreen()),
@@ -189,7 +211,7 @@ GoRouter appRouter(Ref ref) {
       ),
       GoRoute(
         path: RoutePaths.chat,
-        builder: (context, state) => const ChatScreen(),
+        builder: (context, state) => ChatScreen(jobId: state.uri.queryParameters['job']),
       ),
       GoRoute(
         path: RoutePaths.tracking,

@@ -15,6 +15,7 @@ import '../../../cerca/domain/entities/category.dart';
 import '../../../cerca/presentation/widgets/back_circle_button.dart';
 import '../../../cerca/presentation/widgets/cerca_text_styles.dart';
 import '../../../cerca/presentation/widgets/monogram_avatar.dart';
+import '../../../cerca/presentation/widgets/trade_icon.dart';
 import '../../../cerca/presentation/widgets/verified_badge.dart';
 import '../../../technician/application/providers_controller.dart';
 import '../../../technician/domain/tech_team.dart';
@@ -586,7 +587,11 @@ class _CategoryChip extends StatelessWidget {
                 border: Border.all(color: active ? AppColors.cercaPrimary : const Color(0xFFEAD6D2)),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: _TradeIcon(categoryId: category.id),
+              child: TradeIcon(
+                categoryId: category.id,
+                color: active ? Colors.white : AppColors.cercaPrimary,
+                size: 25,
+              ),
             ),
             const SizedBox(height: 6),
             if (wideLabel)
@@ -626,61 +631,6 @@ class _CategoryChip extends StatelessWidget {
                 ),
               ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Displays one cell from the generated 4x2 trade-icon atlas. Keeping the
-/// artwork in one asset makes the category row lightweight and guarantees a
-/// consistent style across all eight trades.
-class _TradeIcon extends StatelessWidget {
-  const _TradeIcon({required this.categoryId});
-
-  static const _cellSize = 38.0;
-  static const _columns = 4;
-  static const _asset = 'assets/images/trades/trade-icons.png';
-  static const _positions = <String, int>{
-    'gasfiteria': 0,
-    'electricidad': 1,
-    'carpinteria': 2,
-    'pintura': 3,
-    'cerrajeria': 4,
-    'electrodomesticos': 5,
-    'jardineria': 6,
-    'climatizacion': 7,
-  };
-
-  final String categoryId;
-
-  @override
-  Widget build(BuildContext context) {
-    final index = _positions[categoryId];
-    if (index == null) return const Icon(Icons.handyman_outlined, size: 24);
-    final column = index % _columns;
-    final row = index ~/ _columns;
-
-    return ClipRect(
-      child: SizedBox(
-        width: _cellSize,
-        height: _cellSize,
-        child: Transform.translate(
-          offset: Offset(-column * _cellSize, -row * _cellSize),
-          child: OverflowBox(
-            alignment: Alignment.topLeft,
-            minWidth: _cellSize * _columns,
-            maxWidth: _cellSize * _columns,
-            minHeight: _cellSize * 2,
-            maxHeight: _cellSize * 2,
-            child: Image.asset(
-              _asset,
-              width: _cellSize * _columns,
-              height: _cellSize * 2,
-              fit: BoxFit.fill,
-              filterQuality: FilterQuality.high,
-            ),
-          ),
         ),
       ),
     );

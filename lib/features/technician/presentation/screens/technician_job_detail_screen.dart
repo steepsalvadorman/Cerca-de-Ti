@@ -118,12 +118,28 @@ class _TechnicianJobDetailScreenState extends ConsumerState<TechnicianJobDetailS
     final isAssignedToMe = myProfile != null && job.technicianProfileId == myProfile.id;
     final isOpenForBid = job.jobKind == 'bidding' && job.technicianProfileId == null;
 
+    // The bottom button is taken by "Avanzar estado" while the job is under
+    // way, which is exactly when the client most needs to be reachable —
+    // so the chat also lives in the header for the assigned technician.
+    final showHeaderChat = isAssignedToMe && !job.isCancelled;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            CercaHeader(title: 'Detalle del trabajo', onBack: () => context.goBack(RoutePaths.technicianJobs)),
+            CercaHeader(
+              title: 'Detalle del trabajo',
+              onBack: () => context.goBack(RoutePaths.technicianJobs),
+              trailing: showHeaderChat
+                  ? IconButton(
+                      tooltip: 'Chatear con el cliente',
+                      onPressed: () => context.push(RoutePaths.chatFor(job.id)),
+                      style: IconButton.styleFrom(backgroundColor: AppColors.cercaSurfaceTint),
+                      icon: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.cercaPrimary, size: 20),
+                    )
+                  : null,
+            ),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
@@ -231,7 +247,7 @@ class _TechnicianJobDetailScreenState extends ConsumerState<TechnicianJobDetailS
                 onTap: _advance,
               )
             else if (isAssignedToMe)
-              PrimaryActionButton(label: 'Chatear', onTap: () => context.push(RoutePaths.chat)),
+              PrimaryActionButton(label: 'Chatear', onTap: () => context.push(RoutePaths.chatFor(job.id))),
           ],
         ),
       ),

@@ -213,7 +213,7 @@ class _OfferCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
                           decoration: BoxDecoration(
-                            color: offer.verified ? AppColors.cercaSurfaceTint : AppColors.cercaWarnBg,
+                            color: offer.verified ? AppColors.cercaSuccessBg : AppColors.cercaWarnBg,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -221,7 +221,7 @@ class _OfferCard extends StatelessWidget {
                             style: CercaText.sora(
                               fontSize: 9,
                               fontWeight: FontWeight.w700,
-                              color: offer.verified ? AppColors.cercaPrimary : AppColors.cercaWarnTextStrong,
+                              color: offer.verified ? AppColors.cercaSuccessText : AppColors.cercaWarnTextStrong,
                             ),
                           ),
                         ),

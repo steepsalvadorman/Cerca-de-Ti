@@ -145,7 +145,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                             ),
                           ),
                           InkWell(
-                            onTap: () => context.push(RoutePaths.chat),
+                            onTap: () => context.push(job == null ? RoutePaths.chat : RoutePaths.chatFor(job.id)),
                             customBorder: const CircleBorder(),
                             child: Container(
                               width: 34,

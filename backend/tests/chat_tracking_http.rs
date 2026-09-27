@@ -440,3 +440,97 @@ async fn reading_a_location_that_was_never_shared_is_a_404(pool: PgPool) {
 
     assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
 }
+
+// ---------------------------------------------------------------------
+// Inbox (`GET /chats`) and unread counts
+// ---------------------------------------------------------------------
+
+async fn rename(pool: &PgPool, user_id: Uuid, name: &str) {
+    sqlx::query("UPDATE users SET name = $2 WHERE id = $1")
+        .bind(user_id)
+        .bind(name)
+        .execute(pool)
+        .await
+        .unwrap();
+}
+
+async fn inbox(pool: &PgPool, token: &str) -> Vec<serde_json::Value> {
+    let (status, body) = call(pool, "GET", "/chats", Some(token), None::<String>).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    serde_json::from_str(&body).unwrap()
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn both_participants_see_the_conversation_with_the_other_party(pool: PgPool) {
+    let client_id = create_user(&pool, "client").await;
+    let (tech_id, profile_id) = create_technician(&pool).await;
+    rename(&pool, client_id, "Sofía Herrera").await;
+    rename(&pool, tech_id, "Marcelo Reyes").await;
+    let job_id = create_active_job(&pool, client_id, profile_id).await;
+
+    let client_inbox = inbox(&pool, &token_for(client_id, Role::Client)).await;
+    assert_eq!(client_inbox.len(), 1);
+    assert_eq!(client_inbox[0]["job_request_id"], job_id.to_string());
+    assert_eq!(client_inbox[0]["counterpart_name"], "Marcelo Reyes");
+    assert_eq!(client_inbox[0]["counterpart_role"], "technician");
+    assert_eq!(client_inbox[0]["job_title"], "Fuga de agua");
+    assert!(client_inbox[0]["last_message_text"].is_null(), "no messages yet");
+
+    let tech_inbox = inbox(&pool, &token_for(tech_id, Role::Technician)).await;
+    assert_eq!(tech_inbox.len(), 1);
+    assert_eq!(tech_inbox[0]["counterpart_name"], "Sofía Herrera");
+    assert_eq!(tech_inbox[0]["counterpart_role"], "client");
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn unread_counts_only_the_other_party_and_clear_on_read(pool: PgPool) {
+    let client_id = create_user(&pool, "client").await;
+    let (tech_id, profile_id) = create_technician(&pool).await;
+    let job_id = create_active_job(&pool, client_id, profile_id).await;
+    let client = token_for(client_id, Role::Client);
+    let tech = token_for(tech_id, Role::Technician);
+    let thread = format!("/jobs/{job_id}/messages");
+
+    for text in ["Voy en camino", "Llego en 10"] {
+        let (status, body) = call(&pool, "POST", &thread, Some(&tech), Some(format!(r#"{{"text":"{text}"}}"#))).await;
+        assert_eq!(status, StatusCode::CREATED, "{body}");
+    }
+
+    let client_inbox = inbox(&pool, &client).await;
+    assert_eq!(client_inbox[0]["unread_count"], 2);
+    assert_eq!(client_inbox[0]["last_message_text"], "Llego en 10");
+    // The sender's own messages are never unread for them.
+    assert_eq!(inbox(&pool, &tech).await[0]["unread_count"], 0);
+
+    // Opening the thread marks it read.
+    let (status, _) = call(&pool, "GET", &thread, Some(&client), None::<String>).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(inbox(&pool, &client).await[0]["unread_count"], 0);
+
+    // A newer message is unread again.
+    call(&pool, "POST", &thread, Some(&tech), Some(r#"{"text":"Ya llegué"}"#.to_string())).await;
+    assert_eq!(inbox(&pool, &client).await[0]["unread_count"], 1);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn the_inbox_leaves_out_strangers_and_cancelled_jobs(pool: PgPool) {
+    let client_id = create_user(&pool, "client").await;
+    let (_, profile_id) = create_technician(&pool).await;
+    let (other_tech_id, _) = create_technician(&pool).await;
+    let job_id = create_active_job(&pool, client_id, profile_id).await;
+
+    assert!(inbox(&pool, &token_for(other_tech_id, Role::Technician)).await.is_empty());
+
+    sqlx::query("UPDATE job_requests SET status = 'cancelled', cancelled_at = now() WHERE id = $1")
+        .bind(job_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert!(inbox(&pool, &token_for(client_id, Role::Client)).await.is_empty());
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn the_inbox_rejects_anonymous_callers(pool: PgPool) {
+    let (status, _) = call(&pool, "GET", "/chats", None, None::<String>).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+}

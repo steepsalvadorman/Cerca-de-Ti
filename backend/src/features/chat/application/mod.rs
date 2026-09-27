@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 pub use send_message::{SendMessageInput, SendMessageUseCase};
 
-use crate::features::chat::domain::{ChatError, ChatMessage, ChatRepository};
+use crate::features::chat::domain::{ChatError, ChatMessage, ChatRepository, Conversation};
 use crate::features::job::application::job_participation::{
     ensure_chat_readable, is_job_participant,
 };
@@ -47,6 +47,32 @@ impl GetMessagesUseCase {
 
         ensure_chat_readable(&job.status)?;
 
-        self.chat_repo.find_messages_by_job_id(job_request_id).await
+        let messages = self.chat_repo.find_messages_by_job_id(job_request_id).await?;
+
+        // Reading the thread is what clears its unread badge. The mark is
+        // the newest message *returned*, not "now", so a message stored
+        // between the read and the mark still counts as unread.
+        if let Some(last) = messages.last() {
+            self.chat_repo
+                .mark_read(job_request_id, reader_id, last.created_at)
+                .await?;
+        }
+
+        Ok(messages)
+    }
+}
+
+/// The caller's chat inbox, newest activity first.
+pub struct GetConversationsUseCase {
+    chat_repo: Arc<dyn ChatRepository>,
+}
+
+impl GetConversationsUseCase {
+    pub fn new(chat_repo: Arc<dyn ChatRepository>) -> Self {
+        Self { chat_repo }
+    }
+
+    pub async fn execute(&self, user_id: Uuid) -> Result<Vec<Conversation>, ChatError> {
+        self.chat_repo.find_conversations(user_id).await
     }
 }

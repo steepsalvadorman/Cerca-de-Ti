@@ -11,13 +11,13 @@ class VerifiedBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(5, 1, 7, 1),
       decoration: BoxDecoration(
-        color: AppColors.cercaSurfaceTint,
+        color: AppColors.cercaSuccessBg,
         borderRadius: BorderRadius.circular(20),
       ),
       child: const Text(
         '✓ Verificado',
         style: TextStyle(
-          color: AppColors.cercaPrimary,
+          color: AppColors.cercaSuccessText,
           fontSize: 9.5,
           fontWeight: FontWeight.w700,
         ),
