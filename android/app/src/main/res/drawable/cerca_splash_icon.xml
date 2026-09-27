@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ splash icon. The system scales this onto a 288dp canvas and
+     clips it to a 192dp circle, so the mark sits in the middle third
+     (~96dp) to stay unclipped and line up with the Flutter splash logo. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="288dp"
+    android:height="288dp"
+    android:viewportWidth="300"
+    android:viewportHeight="300">
+    <group android:translateX="100" android:translateY="100">
+        <path
+            android:pathData="M76.04,34.04 L50,8 L8,50 L50,92 L76.04,65.96"
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="#5C1720"
+            android:strokeWidth="13"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M76.04,34.04 L50,8 L8,50 L50,92 L76.04,65.96"
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="#D1717C"
+            android:strokeWidth="5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M83,39 L94,50 L83,61 L72,50 Z"
+            android:fillColor="#E4939C" />
+    </group>
+</vector>

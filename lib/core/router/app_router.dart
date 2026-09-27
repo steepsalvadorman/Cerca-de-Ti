@@ -107,7 +107,7 @@ GoRouter appRouter(Ref ref) {
       ),
       GoRoute(
         path: RoutePaths.login,
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) => _fadePage(state, const LoginScreen()),
       ),
       GoRoute(
         path: RoutePaths.register,
@@ -115,7 +115,7 @@ GoRouter appRouter(Ref ref) {
       ),
       GoRoute(
         path: RoutePaths.welcome,
-        builder: (context, state) => const WelcomeScreen(),
+        pageBuilder: (context, state) => _fadePage(state, const WelcomeScreen()),
       ),
       GoRoute(
         path: RoutePaths.techDocs,
@@ -199,5 +199,17 @@ GoRouter appRouter(Ref ref) {
         builder: (context, state) => const JobRatingScreen(),
       ),
     ],
+  );
+}
+
+/// Splash hands off to login/welcome with a cross-fade instead of a hard
+/// cut from its dark brand screen to the light app theme.
+CustomTransitionPage<void> _fadePage(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 400),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+        FadeTransition(opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut), child: child),
   );
 }

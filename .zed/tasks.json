@@ -1,0 +1,38 @@
+[
+  {
+    "label": "Android: iniciar emulador (cerca_pixel)",
+    "command": "$ANDROID_HOME/emulator/emulator",
+    "args": ["-avd", "cerca_pixel", "-gpu", "host", "-no-snapshot-save"],
+    "env": { "QT_QPA_PLATFORM": "xcb" },
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "no_focus",
+    "hide": "never"
+  },
+  {
+    "label": "Android: arranque en frío del emulador (wipe data)",
+    "command": "$ANDROID_HOME/emulator/emulator",
+    "args": ["-avd", "cerca_pixel", "-gpu", "host", "-wipe-data"],
+    "env": { "QT_QPA_PLATFORM": "xcb" },
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "no_focus",
+    "hide": "never"
+  },
+  {
+    "label": "Flutter: run en emulador",
+    "command": "adb wait-for-device && flutter run -d emulator-5554",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "Backend: postgres (docker) + cargo run",
+    "command": "docker compose up -d postgres && cargo run --bin backend",
+    "cwd": "$ZED_WORKTREE_ROOT/backend",
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  }
+]

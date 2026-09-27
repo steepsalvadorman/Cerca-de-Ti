@@ -32,12 +32,15 @@ void main() {
 
     expect(find.text('Técnicos verificados, cerca de ti'), findsOneWidget);
 
-    // It must remain visible for the configured minimum presentation time.
-    await tester.pump(const Duration(milliseconds: 2100));
+    // It must remain visible for the minimum presentation time: the intro
+    // only starts once the first frame is on screen, then plays ~2 s.
+    await tester.pump(const Duration(milliseconds: 2000));
     expect(find.text('Cerca'), findsOneWidget);
     expect(find.text('¿Eres nuevo? Crea tu cuenta'), findsNothing);
 
-    await tester.pump(const Duration(milliseconds: 200));
+    // …and hand off to Login shortly after, even if the first-frame signal
+    // never arrives (the 1 s fallback caps it at ~3.05 s).
+    await tester.pump(const Duration(milliseconds: 1100));
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('¿Eres nuevo? Crea tu cuenta'), findsOneWidget);
