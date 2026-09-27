@@ -66,6 +66,13 @@ impl SubmitOfferUseCase {
             .await?
             .ok_or(JobError::JobNotFound)?;
 
+        // A job that already went to *another* technician is no longer this
+        // caller's business at all — the same answer `authorize_job_access`
+        // gives an unassigned technician (403), not a state error.
+        if job.technician_profile_id.is_some_and(|assigned| assigned != profile.id) {
+            return Err(JobError::Unauthorized);
+        }
+
         // Only an open auction takes bids: not a direct hire, not a job
         // that already has its technician, not one already under way.
         if job.job_kind != "bidding" || job.status != JobStatus::Pending {

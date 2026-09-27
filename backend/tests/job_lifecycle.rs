@@ -169,7 +169,10 @@ async fn paying_the_fee_activates_the_job_and_advancing_completes_it(pool: PgPoo
 
     let after_payment = job_repo.find_job_request_by_id(job.id).await.unwrap().unwrap();
     assert!(after_payment.fee_paid);
-    assert!(after_payment.payment_done);
+    // A direct job carries no app fee, so "paying" settles nothing new and
+    // no transaction happens: `payment_done` stays false. The paid path is
+    // covered by `paying_a_bidding_fee_records_the_transaction`.
+    assert!(!after_payment.payment_done);
     assert_eq!(after_payment.status.as_str(), "active");
     assert_eq!(after_payment.timeline_step, 0);
 
@@ -265,4 +268,56 @@ async fn rating_a_job_updates_the_technicians_average(pool: PgPool) {
 
     assert_eq!(profile.reviews, 1);
     assert!((profile.rating - 3.0).abs() < f64::EPSILON);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn paying_a_bidding_fee_records_the_transaction(pool: PgPool) {
+    let job_repo: Arc<dyn JobRepository> = Arc::new(PostgresJobRepository::new(pool.clone()));
+    let tech_repo: Arc<dyn TechnicianRepository> = Arc::new(PostgresTechnicianRepository::new(pool.clone()));
+
+    let client_id = create_user(&pool, "client").await;
+    let tech_user_id = create_user(&pool, "technician").await;
+    create_technician_profile(&pool, tech_user_id).await;
+
+    let job = CreateJobUseCase::new(job_repo.clone())
+        .execute(CreateJobInput {
+            client_id,
+            technician_profile_id: None,
+            tech_team_id: None,
+            job_kind: "bidding".to_string(),
+            title: None,
+            address: None,
+            mobility_included: None,
+        })
+        .await
+        .unwrap();
+    assert!(!job.fee_paid);
+    assert!(!job.payment_done);
+    assert_eq!(job.status.as_str(), "pending");
+
+    SubmitOfferUseCase::new(job_repo.clone(), tech_repo.clone())
+        .execute(SubmitOfferInput {
+            job_request_id: job.id,
+            technician_user_id: tech_user_id,
+            price: 27000,
+            eta: "Hoy, 16:00".to_string(),
+        })
+        .await
+        .unwrap();
+    let offers = job_repo.find_offers_by_job_id(job.id).await.unwrap();
+    ChooseOfferUseCase::new(job_repo.clone())
+        .execute(ChooseOfferInput { job_request_id: job.id, client_id, offer_id: offers[0].id })
+        .await
+        .unwrap();
+
+    PayFeeUseCase::new(job_repo.clone(), Arc::new(FakePaymentGateway))
+        .execute(PayFeeInput { job_request_id: job.id, client_id, payment_method: "card".to_string() })
+        .await
+        .unwrap();
+
+    let after_payment = job_repo.find_job_request_by_id(job.id).await.unwrap().unwrap();
+    assert!(after_payment.fee_paid);
+    assert!(after_payment.payment_done);
+    assert_eq!(after_payment.status.as_str(), "active");
+    assert_eq!(after_payment.timeline_step, 0);
 }

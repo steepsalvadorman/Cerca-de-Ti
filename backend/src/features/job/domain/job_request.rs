@@ -60,8 +60,12 @@ pub struct JobRequest {
     pub timeline_step: i32, // 0: Confirmado, 1: En camino, 2: En el trabajo, 3: Finalizado
     pub fee_type: String, // "direct", "bidding", "project"
     pub fee_amount: i32,
+    /// Cerca's app fee is settled: either paid, or there was nothing to
+    /// charge (a free `fee_type` is born with this already `true`).
     pub fee_paid: bool,
     pub payment_method: Option<String>,
+    /// A payment transaction actually happened. A free job is `fee_paid`
+    /// without `payment_done`, and that is correct, not a divergence.
     pub payment_done: bool,
     pub mobility_included: bool,
     pub agreed_price: Option<i32>,

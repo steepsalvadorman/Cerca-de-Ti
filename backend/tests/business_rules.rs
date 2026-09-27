@@ -356,5 +356,8 @@ async fn bidding_closes_once_the_job_has_its_technician(pool: PgPool) {
             eta: "Mañana".to_string(),
         })
         .await;
-    assert!(matches!(late, Err(JobError::InvalidStatusTransition)));
+    // Once it has its technician the job belongs to someone else: the
+    // latecomer gets the same answer as any unassigned technician (403),
+    // which `ownership_authorization.rs` pins at the HTTP level.
+    assert!(matches!(late, Err(JobError::Unauthorized)));
 }
